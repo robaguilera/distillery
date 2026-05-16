@@ -58,6 +58,8 @@ cp skills/distillery/template_batch.html "$SHARED_DIR/template_batch.html"
 for tmpl in skills/distillery/template_*.html; do
   [ -f "$tmpl" ] && cp "$tmpl" "$SHARED_DIR/$(basename "$tmpl")"
 done
+# Gallery viewer lives one level above scripts/ so knowledge_base.py can find it
+cp skills/distillery-gallery/index.html "$SHARED_DIR/index.html"
 echo "  copied scripts and templates"
 
 echo "Creating Python venv → $SHARED_DIR/.venv/"
