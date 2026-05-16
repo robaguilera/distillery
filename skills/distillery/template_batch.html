@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{BATCH_TITLE}}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50 5 L 85 60 L 50 95 L 15 60 Z' fill='%23c0392b' /><clipPath id='dropHalf'><path d='M 50 5 L 85 60 L 50 95 Z' /></clipPath><g clip-path='url(%23dropHalf)'><rect x='50' y='0' width='50' height='100' fill='%231a1a1a' /><rect x='50' y='20' width='50' height='6' fill='%23c0392b' /><rect x='50' y='35' width='50' height='6' fill='%23c0392b' /><rect x='50' y='50' width='50' height='6' fill='%23c0392b' /><rect x='50' y='65' width='50' height='6' fill='%23c0392b' /><rect x='50' y='80' width='50' height='6' fill='%23c0392b' /></g></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --left-bg: #f0f0ee;
+      --left-text: #1a1a1a;
+      --left-heading: #999;
+      --left-meta: #555;
+      --left-link: #c0392b;
+      --left-border: #ddd;
+      --video-bg: #d8d8d6;
+      --right-bg: #f9f9f7;
+      --right-text: #1a1a1a;
+      --right-border: #e0e0e0;
+      --panel-divider: #ccc;
+      --ts-active-bg: #ffeaea;
+      --strong-color: #1a1a1a;
+      --toggle-bg: #ddd;
+      --toggle-text: #444;
+      --batch-tab-h: 42px;
+    }
+
+    [data-theme="dark"] {
+      --left-bg: #14110f;
+      --left-text: #f0ede8;
+      --left-heading: #6a6460;
+      --left-meta: #8a8480;
+      --left-link: #e05a4a;
+      --left-border: #2a2520;
+      --video-bg: #000;
+      --right-bg: #1c1916;
+      --right-text: #d0cdc8;
+      --right-border: #2c2925;
+      --panel-divider: #2a2520;
+      --ts-active-bg: #3a1a1a;
+      --strong-color: #f0ede8;
+      --toggle-bg: #2a2520;
+      --toggle-text: #c0bdb8;
+    }
+
+    body {
+      background: var(--right-bg);
+      color: var(--right-text);
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 16px;
+      line-height: 1.75;
+      min-height: 100vh;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .left, .right { transition: background-color 0.2s ease, color 0.2s ease; }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: var(--left-w, 45%) 6px 1fr;
+      grid-template-rows: 1fr;
+      min-height: 100vh;
+    }
+
+    .layout.snapping { transition: grid-template-columns 0.2s ease; }
+
+    #resizer {
+      grid-column: 2; grid-row: 1;
+      cursor: col-resize;
+      background: var(--panel-divider);
+      width: 6px; position: relative; flex-shrink: 0; z-index: 10;
+    }
+    #resizer:hover, #resizer.dragging { background: var(--left-link); }
+    #resizer::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px; height: 32px; border-radius: 1px;
+      background: var(--panel-divider); opacity: 0.5;
+    }
+    #resizer:hover::after, #resizer.dragging::after { opacity: 1; background: rgba(255,255,255,0.7); }
+
+    /* Left col */
+    .left {
+      grid-column: 1; grid-row: 1;
+      position: sticky; top: 0;
+      height: 100vh;
+      display: flex; flex-direction: column;
+      background: var(--left-bg); color: var(--left-text);
+      overflow: hidden;
+    }
+
+    .video-wrap {
+      position: relative; width: 100%;
+      padding-top: min(56.25%, calc(100vh - 220px));
+      flex-shrink: 0; background: var(--video-bg);
+    }
+    .video-wrap iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none; display: block;
+    }
+    #yt-overlay { position: absolute; inset: 0; cursor: pointer; z-index: 2; }
+
+    .video-meta { padding: 0.9rem 1.2rem; overflow-y: visible; flex-shrink: 0; }
+    .left-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    .outline-section { padding: 0.9rem 1.2rem 1.2rem; border-top: 1px solid var(--left-border); flex: 1; }
+    .outline-section h2 {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--left-heading); margin-bottom: 0.9rem;
+    }
+    .video-meta h1 {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.95rem; font-weight: 600; color: var(--left-text); line-height: 1.4; margin-bottom: 0.35rem;
+    }
+    .video-meta .meta-line {
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.75rem; color: var(--left-meta);
+    }
+    .video-meta .meta-line a { color: var(--left-link); text-decoration: none; }
+
+    /* Right col */
+    .right {
+      grid-column: 3; grid-row: 1;
+      overflow-y: auto; height: 100vh;
+      padding: 0 2rem 70vh;
+      background: var(--right-bg); color: var(--right-text);
+    }
+
+    section { scroll-margin-top: calc(var(--batch-tab-h) + 2.4rem); padding-bottom: 1.8rem; margin-bottom: 1.8rem; border-bottom: 1px solid var(--right-border); }
+    section:last-child { border-bottom: none; margin-bottom: 0; }
+
+    h2 {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--left-heading); margin-bottom: 0.9rem;
+    }
+
+    p { margin-bottom: 0.9rem; }
+    p:last-child { margin-bottom: 0; }
+    ul { padding-left: 1.3rem; }
+    ul li { margin-bottom: 0.5rem; }
+
+    #key-points li, #synth-themes li { margin-bottom: 1.1rem; }
+    #key-points li:last-child, #synth-themes li:last-child { margin-bottom: 0; }
+    #key-points li, #synth-themes li { font-family: 'DM Sans', system-ui, sans-serif; line-height: 1.65; }
+    #key-points li p, #synth-themes li p {
+      margin-top: 0.45rem; margin-bottom: 0;
+      font-size: 0.93rem; line-height: 1.75; color: var(--right-text); opacity: 0.82;
+    }
+
+    strong { color: var(--strong-color); }
+
+    /* Topics / Outline */
+    ol.topics { list-style: none; padding: 0; display: grid; grid-template-columns: max-content auto 1fr; column-gap: 0.4rem; }
+    ol.topics li {
+      position: relative; display: grid; grid-template-columns: subgrid; grid-column: 1 / -1;
+      align-items: baseline; margin-bottom: 0;
+      font-size: 0.92rem; font-family: 'DM Sans', system-ui, sans-serif; color: var(--left-text);
+      line-height: 1.5; padding-left: 1rem; padding-block: 0.3rem;
+      cursor: pointer; transition: background-color 0.15s;
+    }
+    ol.topics li.expanded .outline-title, ol.topics li.active .outline-title { font-weight: 600; }
+    .outline-detail {
+      display: block; max-height: 0; overflow: hidden; opacity: 0; pointer-events: none;
+      transition: max-height 0.18s ease, opacity 0.18s ease;
+      grid-column: 3; font-size: 0.84rem; line-height: 1.45; color: var(--left-meta); padding-bottom: 0.15rem;
+    }
+    ol.topics li.expanded .outline-detail, ol.topics li.active .outline-detail { max-height: 150px; opacity: 1; pointer-events: auto; }
+    ol.topics li:hover { background-color: color-mix(in srgb, var(--left-link) 6%, transparent); }
+    [data-theme="dark"] ol.topics li:hover { background-color: color-mix(in srgb, var(--left-link) 12%, transparent); }
+
+    a.ts {
+      color: var(--left-link); text-decoration: none; font-variant-numeric: tabular-nums;
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.82rem; white-space: nowrap; cursor: pointer;
+    }
+    a.ts:hover { text-decoration: underline; }
+    ol.topics li.active { box-shadow: inset 2px 0 0 0 var(--left-link); transition: box-shadow 0.5s ease; }
+
+    @keyframes border-breathe {
+      0%, 100% { box-shadow: inset 2px 0 0 0 var(--left-link); }
+      50% { box-shadow: inset 4px 0 0 0 var(--left-link); }
+    }
+    body.is-playing ol.topics li.active { animation: border-breathe 2.5s ease-in-out infinite; }
+
+    /* Batch tab bar */
+    .batch-tab-bar {
+      position: sticky; top: 0; z-index: 15;
+      margin: 0 -2rem; padding: 0 0.5rem 0 2rem;
+      background: var(--right-bg); border-bottom: 1px solid var(--right-border);
+      display: flex; align-items: stretch; overflow-x: auto;
+      height: var(--batch-tab-h); flex-shrink: 0;
+      transition: background-color 0.2s ease;
+      scrollbar-width: none;
+    }
+    .batch-tab-bar::-webkit-scrollbar { display: none; }
+
+    .batch-tab {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.75rem; font-weight: 500;
+      padding: 0 0.9rem;
+      border: none; border-bottom: 3px solid transparent;
+      background: transparent; color: var(--left-meta);
+      cursor: pointer; white-space: nowrap;
+      display: flex; align-items: center; gap: 0.4rem;
+      height: 100%; flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+      max-width: 200px; overflow: hidden;
+    }
+    .batch-tab .tab-label { overflow: hidden; text-overflow: ellipsis; }
+    .batch-tab .tab-num { font-size: 0.62rem; opacity: 0.5; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .batch-tab:hover { color: var(--right-text); }
+    .batch-tab.active { color: var(--left-link); border-bottom-color: var(--left-link); }
+
+    .batch-tab.synthesis-tab {
+      margin-left: auto; flex-shrink: 0;
+      border-left: 1px solid var(--right-border);
+      padding-left: 1rem; gap: 0.35rem;
+    }
+    .batch-tab.synthesis-tab .synth-icon { font-size: 0.78rem; opacity: 0.7; }
+    .batch-tab.synthesis-tab.active .synth-icon { opacity: 1; }
+
+    /* Section nav — offset by batch tab bar */
+    .section-nav {
+      position: sticky; top: var(--batch-tab-h); z-index: 10;
+      margin: 0 -2rem 1.5rem; padding: 0.6rem 1.25rem 0.6rem 2.5rem;
+      background: var(--right-bg); border-bottom: 1px solid var(--right-border);
+      display: flex; gap: 1.2rem;
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      transition: background-color 0.2s ease;
+    }
+    .section-nav a { color: var(--left-meta); text-decoration: none; padding-bottom: 1px; border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .section-nav a.active { color: var(--left-link); border-bottom-color: var(--left-link); }
+    .section-nav a:hover { color: var(--right-text); }
+
+    /* Nav actions */
+    .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0; }
+    .icon-btn {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1.5px solid rgba(0,0,0,0.13); background: transparent; color: #666;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.88rem; font-weight: 500;
+      flex-shrink: 0; transition: opacity 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { opacity: 0.65; }
+    [data-theme="dark"] .icon-btn { border-color: rgba(255,255,255,0.15); color: #c0bdb8; }
+
+    /* Controls bar */
+    .ctrl-bar {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 1.2rem;
+      border-top: 1px solid var(--left-border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .ctrl-bar button {
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.75rem; font-weight: 500;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--left-border); border-radius: 4px;
+      background: transparent; color: var(--left-text);
+      cursor: pointer; line-height: 1;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .ctrl-bar button:hover { opacity: 0.75; }
+
+    #play-pause-btn {
+      width: 2rem; height: 2rem; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; border: 1px solid #ccc; border-radius: 6px; color: #111;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12); flex-shrink: 0;
+    }
+    [data-theme="dark"] #play-pause-btn { background: var(--left-border); border-color: var(--left-border); color: var(--left-text); }
+
+    #time-display {
+      font-family: 'DM Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 0.72rem; font-variant-numeric: tabular-nums;
+      opacity: 0.65; white-space: nowrap; color: var(--left-text); padding: 0 0.2rem; flex-shrink: 0;
+    }
+
+    .speed-group { display: flex; border: 1px solid var(--left-border); border-radius: 5px; overflow: hidden; }
+    .speed-group .speed-btn { border: none; border-right: 1px solid var(--left-border); border-radius: 0; padding: 0.55rem 0.5rem; }
+    .speed-group .speed-btn:last-child { border-right: none; }
+    .speed-group .speed-btn.active { background: var(--left-link); color: #fff; border-color: var(--left-link); }
+
+    .seek-group { display: flex; border: 1px solid var(--left-border); border-radius: 5px; overflow: hidden; }
+    .seek-group button { border: none; border-right: 1px solid var(--left-border); border-radius: 0; padding: 0.55rem 0.6rem; }
+    .seek-group button:last-child { border-right: none; }
+
+    .ctrl-bar-icon-btn {
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+      padding: 0.45rem 0.55rem; border: 1px solid var(--left-border); border-radius: 4px;
+      background: transparent; color: var(--left-text); cursor: pointer; line-height: 1;
+      opacity: 0.55; transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .ctrl-bar-icon-btn:hover { opacity: 0.85; }
+    .ctrl-bar-icon-btn.active { background: var(--left-link); color: #fff; border-color: var(--left-link); opacity: 1; }
+
+    .ctrl-bar.yt-native .seek-group,
+    .ctrl-bar.yt-native #play-pause-btn,
+    .ctrl-bar.yt-native #time-display,
+    .ctrl-bar.yt-native .speed-group { display: none; }
+    #controls-toggle-btn { margin-left: auto; }
+
+    .ctrl-divider { width: 1px; height: 1rem; background: var(--left-border); flex-shrink: 0; margin: 0 0.1rem; }
+
+    /* Progress bar */
+    #progress-track { height: 3px; background: var(--left-border); cursor: pointer; flex-shrink: 0; transition: height 0.15s ease; }
+    #progress-track:hover { height: 5px; }
+    #progress-fill { height: 100%; background: var(--left-link); width: 0%; transition: width 0.8s linear; pointer-events: none; }
+
+    /* Synthesis left panel */
+    .synthesis-panel {
+      display: flex; flex-direction: column; height: 100%;
+      background: var(--left-bg); color: var(--left-text); overflow: hidden;
+    }
+    .synthesis-header {
+      padding: 1.2rem 1.2rem 1rem;
+      border-bottom: 1px solid var(--left-border); flex-shrink: 0;
+    }
+    .synthesis-eyebrow {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--left-heading); margin-bottom: 0.4rem;
+    }
+    .synthesis-header h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 1.05rem; font-weight: 400; color: var(--left-text); line-height: 1.35;
+    }
+    .synthesis-list { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+    .synthesis-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.55rem 1.2rem; cursor: pointer; transition: background 0.15s;
+    }
+    .synthesis-item:hover { background: color-mix(in srgb, var(--left-link) 6%, transparent); }
+    [data-theme="dark"] .synthesis-item:hover { background: color-mix(in srgb, var(--left-link) 12%, transparent); }
+    .synthesis-thumb {
+      width: 72px; height: 40px; object-fit: cover; border-radius: 4px;
+      flex-shrink: 0; background: var(--video-bg);
+    }
+    .synthesis-info { flex: 1; min-width: 0; }
+    .synthesis-item-num {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--left-heading); margin-bottom: 0.1rem;
+    }
+    .synthesis-item-title {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.82rem; font-weight: 500; color: var(--left-text); line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .synthesis-item-meta {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 0.7rem; color: var(--left-meta); margin-top: 0.1rem;
+    }
+
+    /* Description */
+    .video-description { white-space: pre-wrap; font-size: 0.88rem; line-height: 1.65; font-family: 'DM Sans', system-ui, sans-serif; color: var(--left-meta); }
+    .video-description a { color: var(--left-link); text-decoration: underline; text-underline-offset: 2px; }
+    .description-details { margin-top: 1.4rem; }
+    .description-details > summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;
+      font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.8rem; font-weight: 400;
+      color: var(--left-link); text-decoration: underline; text-underline-offset: 2px;
+      user-select: none; margin-bottom: 0;
+    }
+    .description-details > summary::-webkit-details-marker { display: none; }
+    .description-details > summary::before {
+      content: ''; display: inline-block; width: 0; height: 0; border-style: solid;
+      border-width: 4px 0 4px 6px; border-color: transparent transparent transparent var(--left-link);
+      transition: transform 0.2s; flex-shrink: 0;
+    }
+    .description-details[open] > summary::before { transform: rotate(90deg); }
+    .description-details .video-description { margin-top: 0.8rem; }
+
+    /* Scrollbars */
+    .left-scroll::-webkit-scrollbar, .right::-webkit-scrollbar, .synthesis-list::-webkit-scrollbar { width: 5px; }
+    .left-scroll::-webkit-scrollbar-thumb, .right::-webkit-scrollbar-thumb, .synthesis-list::-webkit-scrollbar-thumb { background: var(--left-border); border-radius: 3px; }
+    .left-scroll::-webkit-scrollbar-track, .right::-webkit-scrollbar-track, .synthesis-list::-webkit-scrollbar-track { background: transparent; }
+
+    /* Help modal */
+    #help-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.38); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    #help-overlay.open { display: flex; }
+    #help-modal {
+      background: var(--right-bg); color: var(--right-text);
+      border: 1px solid var(--right-border); border-radius: 12px;
+      padding: 1.75rem 2rem 1.5rem; max-width: 400px; width: calc(100% - 3rem);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18); font-family: 'DM Sans', system-ui, sans-serif;
+      position: relative; max-height: calc(100vh - 4rem); overflow-y: auto;
+    }
+    #help-modal h3 { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--left-heading); margin-bottom: 0.6rem; margin-top: 1.2rem; }
+    #help-modal h3:first-child { margin-top: 0; }
+    #help-modal p { font-size: 0.88rem; line-height: 1.65; color: var(--right-text); margin-bottom: 0; }
+    #help-modal a { color: var(--left-link); text-decoration: none; }
+    #help-close {
+      position: absolute; top: 0.75rem; right: 0.75rem; width: 26px; height: 26px;
+      border-radius: 50%; border: none; background: transparent; color: var(--left-meta);
+      cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+      opacity: 0.5; transition: opacity 0.15s;
+    }
+    #help-close:hover { opacity: 1; }
+    .help-shortcuts { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1rem; font-size: 0.85rem; }
+    .help-key { font-family: monospace; background: var(--toggle-bg); color: var(--left-text); border-radius: 4px; padding: 0.15rem 0.5rem; font-size: 0.78rem; white-space: nowrap; align-self: center; text-align: center; }
+    .help-desc { color: var(--left-meta); align-self: center; font-size: 0.85rem; }
+
+    /* Mobile */
+    @media (max-width: 800px) {
+      .layout { display: block; }
+      .left { position: static; height: auto; }
+      #resizer { display: none; }
+      .right { height: auto; overflow-y: visible; border-top: 1px solid var(--panel-divider); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="help-overlay" role="dialog" aria-modal="true" aria-label="Help">
+    <div id="help-modal">
+      <button id="help-close" aria-label="Close">×</button>
+      <div style="text-align:center;margin-bottom:16px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="40" height="40" style="border-radius:50%"><circle cx="16" cy="16" r="16" fill="#c0392b"/><text x="16" y="21" font-family="sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="-0.5">VL</text></svg>
+      </div>
+      <h3>About</h3>
+      <p>Distillery batch report — multiple YouTube videos processed together. Switch between videos with the tabs at the top, or open the Synthesis tab for a cross-video analysis.</p>
+      <h3>Shortcuts</h3>
+      <div class="help-shortcuts">
+        <span class="help-key">k / Space</span><span class="help-desc">play / pause</span>
+        <span class="help-key">j / ←</span><span class="help-desc">seek back 5 s</span>
+        <span class="help-key">l / →</span><span class="help-desc">seek forward 5 s</span>
+        <span class="help-key">, / &lt;</span><span class="help-desc">slower speed</span>
+        <span class="help-key">. / &gt;</span><span class="help-desc">faster speed</span>
+        <span class="help-key">[ / ]</span><span class="help-desc">previous / next video tab</span>
+        <span class="help-key">1–9</span><span class="help-desc">jump to video tab N</span>
+        <span class="help-key">0</span><span class="help-desc">jump to synthesis tab</span>
+        <span class="help-key">f</span><span class="help-desc">fullscreen</span>
+        <span class="help-key">Esc</span><span class="help-desc">close help</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="left" id="left-panel"><!-- populated by JS --></div>
+    <div id="resizer" title="Drag to resize · double-click to reset"></div>
+    <div class="right" id="right-panel">
+      <nav class="batch-tab-bar" id="batch-tab-bar"><!-- populated by JS --></nav>
+      <div id="content-host"><!-- populated by JS --></div>
+    </div>
+  </div>
+
+  <!-- Data injection (safe; not executed by browser) -->
+  <script type="application/json" id="vl-batch-videos">{{BATCH_VIDEOS_JSON}}</script>
+  <script type="application/json" id="vl-synthesis">{{SYNTHESIS_JSON}}</script>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    // ── Data ──────────────────────────────────────────────────────────────────
+    var BATCH_VIDEOS = JSON.parse(document.getElementById('vl-batch-videos').textContent);
+    var SYNTHESIS    = JSON.parse(document.getElementById('vl-synthesis').textContent);
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    var activeTabIdx      = 0;       // number or 'synthesis'
+    var ytPlayer          = null;
+    var ytApiReady        = false;
+    var pendingSeek       = null;
+    var ytControlsVisible = false;
+    var ccEnabled         = false;
+    var progressInterval  = null;
+    var timeInterval      = null;
+    var sectionObserver   = null;
+    var topicItems        = [];
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatTime(s) {
+      s = Math.floor(s || 0);
+      var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+      return m + ':' + String(sec).padStart(2, '0');
+    }
+
+    function buildIframeSrc(videoId) {
+      return 'https://www.youtube.com/embed/' + videoId
+        + '?enablejsapi=1&rel=0&controls=' + (ytControlsVisible ? '1' : '0')
+        + (ccEnabled ? '&cc_load_policy=1' : '');
+    }
+
+    function clearIntervals() {
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+      if (timeInterval)     { clearInterval(timeInterval);     timeInterval = null; }
+    }
+
+    // ── Left panel: video ─────────────────────────────────────────────────────
+    function renderVideoLeft(idx) {
+      var v = BATCH_VIDEOS[idx];
+      return '<div class="video-wrap">'
+        + '<iframe id="yt-player" src="' + buildIframeSrc(v.videoId) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+        + '<div id="yt-overlay" aria-hidden="true"></div>'
+        + '</div>'
+        + '<div id="progress-track"><div id="progress-fill"></div></div>'
+        + '<div class="ctrl-bar">'
+        +   '<button id="play-pause-btn" title="Play / pause [k / Space]">'
+        +     '<svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><polygon points="0,0 10,6 0,12"/></svg>'
+        +   '</button>'
+        +   '<span id="time-display">–:–– / –:––</span>'
+        +   '<div class="ctrl-divider"></div>'
+        +   '<div class="seek-group">'
+        +     '<button id="seek-back" title="Seek back 5 s [j / ←]">← -5s</button>'
+        +     '<button id="seek-fwd" title="Seek fwd 5 s [l / →]">+5s →</button>'
+        +   '</div>'
+        +   '<div class="ctrl-divider"></div>'
+        +   '<div class="speed-group">'
+        +     '<button class="speed-btn active" data-speed="1">1×</button>'
+        +     '<button class="speed-btn" data-speed="1.25">1.25×</button>'
+        +     '<button class="speed-btn" data-speed="1.5">1.5×</button>'
+        +     '<button class="speed-btn" data-speed="1.75">1.75×</button>'
+        +     '<button class="speed-btn" data-speed="2">2×</button>'
+        +   '</div>'
+        +   '<button id="controls-toggle-btn" class="ctrl-bar-icon-btn" title="Toggle YouTube controls">YT</button>'
+        + '</div>'
+        + '<div class="video-meta">'
+        +   '<h1>' + esc(v.title) + '</h1>'
+        +   '<p class="meta-line">' + (v.metaLine || '') + ' · <a href="' + esc(v.videoUrl) + '" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a></p>'
+        + '</div>'
+        + '<div class="left-scroll">'
+        +   '<div class="outline-section">'
+        +     '<h2>Outline</h2>'
+        +     '<ol class="topics">' + v.outline + '</ol>'
+        +   '</div>'
+        + '</div>';
+    }
+
+    // ── Left panel: synthesis ─────────────────────────────────────────────────
+    function renderSynthesisLeft() {
+      var s = SYNTHESIS;
+      var html = '<div class="synthesis-panel">';
+      html += '<div class="synthesis-header">';
+      html += '<div class="synthesis-eyebrow">Synthesis · ' + BATCH_VIDEOS.length + ' video' + (BATCH_VIDEOS.length !== 1 ? 's' : '') + '</div>';
+      html += '<h1>' + esc(s.title) + '</h1>';
+      html += '</div>';
+      html += '<div class="synthesis-list">';
+      BATCH_VIDEOS.forEach(function(v, i) {
+        var shortMeta = (v.metaLine || '').split(' · ').slice(0, 2).join(' · ');
+        html += '<div class="synthesis-item" data-switch-idx="' + i + '">';
+        html += '<img class="synthesis-thumb" src="https://img.youtube.com/vi/' + esc(v.videoId) + '/mqdefault.jpg" alt="" loading="lazy">';
+        html += '<div class="synthesis-info">';
+        html += '<div class="synthesis-item-num">Video ' + (i + 1) + '</div>';
+        html += '<div class="synthesis-item-title">' + esc(v.title) + '</div>';
+        if (shortMeta) html += '<div class="synthesis-item-meta">' + esc(shortMeta) + '</div>';
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    // ── Right content: video ──────────────────────────────────────────────────
+    function renderVideoContent(idx) {
+      var v = BATCH_VIDEOS[idx];
+      var exportIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+      return '<nav class="section-nav">'
+        +   '<a href="#summary" class="active">Summary</a>'
+        +   '<a href="#takeaway">Takeaway</a>'
+        +   '<a href="#key-points">Key Points</a>'
+        +   '<div class="nav-actions">'
+        +     '<button id="md-export-btn" class="icon-btn" aria-label="Export Markdown" title="Export as Markdown">' + exportIcon + '</button>'
+        +     '<button id="help-btn" class="icon-btn" aria-label="Help" title="Help">?</button>'
+        +     '<button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme"><svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>'
+        +   '</div>'
+        + '</nav>'
+        + '<section id="summary"><h2>Summary</h2><p>' + v.summary + '</p>' + (v.descriptionSection || '') + '</section>'
+        + '<section id="takeaway"><h2>Takeaway</h2><p>' + v.takeaway + '</p></section>'
+        + '<section id="key-points"><h2>Key Points</h2><ul>' + v.keyPoints + '</ul></section>';
+    }
+
+    // ── Right content: synthesis ──────────────────────────────────────────────
+    function renderSynthesisContent() {
+      var s = SYNTHESIS;
+      var exportIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+      var navLinks = '<a href="#synth-summary" class="active">Overview</a><a href="#synth-themes">Themes</a>';
+      if (s.divergences) navLinks += '<a href="#synth-divergences">Divergences</a>';
+      navLinks += '<a href="#synth-takeaway">Takeaway</a>';
+      var html = '<nav class="section-nav">' + navLinks
+        + '<div class="nav-actions">'
+        +   '<button id="md-export-btn" class="icon-btn" aria-label="Export Markdown" title="Export as Markdown">' + exportIcon + '</button>'
+        +   '<button id="help-btn" class="icon-btn" aria-label="Help" title="Help">?</button>'
+        +   '<button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme"><svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg></button>'
+        + '</div></nav>';
+      html += '<section id="synth-summary"><h2>Overview</h2><p>' + s.summary + '</p></section>';
+      html += '<section id="synth-themes"><h2>Common Themes</h2><ul>' + s.themes + '</ul></section>';
+      if (s.divergences) html += '<section id="synth-divergences"><h2>Evolution &amp; Divergences</h2><p>' + s.divergences + '</p></section>';
+      html += '<section id="synth-takeaway"><h2>Synthesis Takeaway</h2><p>' + s.takeaway + '</p></section>';
+      return html;
+    }
+
+    // ── Tab bar ───────────────────────────────────────────────────────────────
+    function buildTabBar() {
+      var bar = document.getElementById('batch-tab-bar');
+      var html = '';
+      BATCH_VIDEOS.forEach(function(v, i) {
+        var label = v.title.length > 30 ? v.title.slice(0, 28) + '…' : v.title;
+        html += '<button class="batch-tab' + (i === activeTabIdx ? ' active' : '') + '" data-tab-idx="' + i + '" title="' + esc(v.title) + '">'
+          + '<span class="tab-num">' + (i + 1) + '</span>'
+          + '<span class="tab-label">' + esc(label) + '</span>'
+          + '</button>';
+      });
+      if (SYNTHESIS) {
+        html += '<button class="batch-tab synthesis-tab' + (activeTabIdx === 'synthesis' ? ' active' : '') + '" data-tab-idx="synthesis" title="' + esc(SYNTHESIS.title) + '">'
+          + '<span class="synth-icon">✦</span>'
+          + '<span class="tab-label">Synthesis</span>'
+          + '</button>';
+      }
+      bar.innerHTML = html;
+      bar.querySelectorAll('.batch-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var raw = this.getAttribute('data-tab-idx');
+          switchTab(raw === 'synthesis' ? 'synthesis' : parseInt(raw, 10));
+        });
+      });
+    }
+
+    function updateTabActive(idx) {
+      document.querySelectorAll('.batch-tab').forEach(function(btn) {
+        var raw = btn.getAttribute('data-tab-idx');
+        var isActive = idx === 'synthesis' ? raw === 'synthesis' : parseInt(raw, 10) === idx;
+        btn.classList.toggle('active', isActive);
+        if (isActive) btn.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+      });
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function switchTab(idx) {
+      if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch(e) {} ytPlayer = null; }
+      clearIntervals();
+      if (sectionObserver) { sectionObserver.disconnect(); sectionObserver = null; }
+      document.body.classList.remove('is-playing');
+      topicItems = [];
+
+      activeTabIdx = idx;
+      updateTabActive(idx);
+
+      var leftEl   = document.getElementById('left-panel');
+      var contentHost = document.getElementById('content-host');
+
+      if (idx === 'synthesis') {
+        leftEl.innerHTML = renderSynthesisLeft();
+        contentHost.innerHTML = renderSynthesisContent();
+        bindSynthesisLeftEvents();
+      } else {
+        leftEl.innerHTML = renderVideoLeft(idx);
+        contentHost.innerHTML = renderVideoContent(idx);
+        bindVideoLeftEvents(idx);
+        checkFileProtocol(idx);
+        initYTPlayer();
+      }
+
+      document.getElementById('right-panel').scrollTop = 0;
+      bindCommonContentEvents(idx);
+      bindSectionNav();
+      reapplyTheme();
+    }
+
+    // ── file:// warning ───────────────────────────────────────────────────────
+    function checkFileProtocol(idx) {
+      if (window.location.protocol !== 'file:') return;
+      var v = BATCH_VIDEOS[idx];
+      var rawPath = window.location.pathname;
+      var parts = rawPath.split('/');
+      var file = parts[parts.length - 1];
+      var parent = parts[parts.length - 2];
+      var urlPath = parent === 'reports' ? 'reports/' + file : file;
+      var localUrl = 'http://localhost:8765/' + urlPath;
+      var dir = decodeURIComponent(rawPath.replace(/\/[^/]+$/, ''));
+      var serveDir = parent === 'reports' ? dir.replace(/\/reports$/, '') : dir;
+      var cmd = 'python3 -m http.server 8765 --directory "' + serveDir.replace(/"/g, '\\"') + '"';
+      var wrap = document.querySelector('.video-wrap');
+      if (!wrap) return;
+      var notice = document.createElement('div');
+      notice.setAttribute('style', 'position:absolute;inset:0;z-index:100;background:var(--left-bg);color:var(--left-text);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;text-align:center;gap:12px;font-family:"DM Sans",system-ui,sans-serif;');
+      notice.innerHTML = '<p style="font-size:13px;font-weight:600;line-height:1.4">Serve to enable video playback</p>'
+        + '<code style="font-size:10.5px;background:var(--left-border);padding:4px 8px;border-radius:4px;font-family:monospace;word-break:break-all">' + esc(cmd) + '</code>'
+        + '<a href="' + esc(localUrl) + '" style="display:inline-block;padding:8px 16px;background:var(--left-link);color:#fff;border-radius:6px;font-size:12px;font-weight:500;text-decoration:none">Open localhost:8765 ↗</a>';
+      wrap.appendChild(notice);
+    }
+
+    // ── YT Player ─────────────────────────────────────────────────────────────
+    function onYouTubeIframeAPIReady() {
+      ytApiReady = true;
+      if (typeof activeTabIdx === 'number') initYTPlayer();
+    }
+
+    function initYTPlayer() {
+      if (!ytApiReady || typeof activeTabIdx !== 'number') return;
+      if (!document.getElementById('yt-player')) return;
+      ytPlayer = new YT.Player('yt-player', {
+        events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError }
+      });
+    }
+
+    function onPlayerReady(e) {
+      if (pendingSeek !== null) { e.target.seekTo(pendingSeek, true); e.target.playVideo(); pendingSeek = null; }
+    }
+
+    function onPlayerStateChange(e) {
+      var ppBtn = document.getElementById('play-pause-btn');
+      if (ppBtn) ppBtn.innerHTML = e.data === 1
+        ? '<svg width="11" height="12" viewBox="0 0 11 12" fill="currentColor"><rect x="0" y="0" width="3.5" height="12" rx="1"/><rect x="7.5" y="0" width="3.5" height="12" rx="1"/></svg>'
+        : '<svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><polygon points="0,0 10,6 0,12"/></svg>';
+      document.body.classList.toggle('is-playing', e.data === 1);
+    }
+
+    function onPlayerError(e) {
+      if (e.data !== 101 && e.data !== 150) return;
+      var wrap = document.querySelector('.video-wrap');
+      if (!wrap || typeof activeTabIdx !== 'number') return;
+      var v = BATCH_VIDEOS[activeTabIdx];
+      wrap.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--video-bg);color:var(--left-text);gap:14px;">'
+        + '<strong style="font-size:15px;opacity:0.8">Embedding disabled by video owner</strong>'
+        + '<a href="' + esc(v.videoUrl) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 20px;border-radius:6px;background:var(--left-link);color:#fff;font-size:13px;font-weight:600;text-decoration:none;">Watch on YouTube</a>'
+        + '</div>';
+      var pt = document.getElementById('progress-track');
+      var cb = document.querySelector('.ctrl-bar');
+      if (pt) pt.style.display = 'none';
+      if (cb) cb.style.display = 'none';
+    }
+
+    function rebuildIframe(savedTime) {
+      if (typeof activeTabIdx !== 'number') return;
+      var v = BATCH_VIDEOS[activeTabIdx];
+      var oldIframe = document.getElementById('yt-player');
+      if (!oldIframe) return;
+      var wrap = oldIframe.parentNode;
+      if (ytPlayer && ytPlayer.destroy) ytPlayer.destroy();
+      ytPlayer = null;
+      var newIframe = document.createElement('iframe');
+      newIframe.id = 'yt-player';
+      newIframe.allow = oldIframe.allow;
+      newIframe.allowFullscreen = true;
+      newIframe.src = buildIframeSrc(v.videoId);
+      wrap.replaceChild(newIframe, oldIframe);
+      pendingSeek = savedTime;
+      ytPlayer = new YT.Player('yt-player', {
+        events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError }
+      });
+    }
+
+    // ── Video left event binding ───────────────────────────────────────────────
+    function bindVideoLeftEvents(idx) {
+      // Overlay
+      var overlay = document.getElementById('yt-overlay');
+      if (overlay) overlay.addEventListener('click', function() {
+        if (!ytPlayer || !ytPlayer.getPlayerState) return;
+        ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+        document.body.focus();
+      });
+
+      // Play/pause
+      var ppBtn = document.getElementById('play-pause-btn');
+      if (ppBtn) ppBtn.addEventListener('click', function() {
+        if (!ytPlayer || !ytPlayer.getPlayerState) return;
+        ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+      });
+
+      // Seek
+      var seekBack = document.getElementById('seek-back');
+      var seekFwd  = document.getElementById('seek-fwd');
+      if (seekBack) seekBack.addEventListener('click', function() {
+        if (ytPlayer && ytPlayer.getCurrentTime) ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - 5), true);
+      });
+      if (seekFwd) seekFwd.addEventListener('click', function() {
+        if (ytPlayer && ytPlayer.getCurrentTime) ytPlayer.seekTo(ytPlayer.getCurrentTime() + 5, true);
+      });
+
+      // Speed
+      var speedBtns = document.querySelectorAll('.speed-btn');
+      speedBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var rate = parseFloat(this.getAttribute('data-speed'));
+          if (ytPlayer && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(rate);
+          speedBtns.forEach(function(b) { b.classList.remove('active'); });
+          this.classList.add('active');
+        });
+      });
+
+      // Controls toggle
+      var ctrlToggle = document.getElementById('controls-toggle-btn');
+      if (ctrlToggle) ctrlToggle.addEventListener('click', function() {
+        var saved = (ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0;
+        ytControlsVisible = !ytControlsVisible;
+        document.querySelector('.ctrl-bar').classList.toggle('yt-native', ytControlsVisible);
+        ctrlToggle.classList.toggle('active', ytControlsVisible);
+        var ov = document.getElementById('yt-overlay');
+        if (ov) ov.style.display = ytControlsVisible ? 'none' : '';
+        rebuildIframe(saved);
+      });
+
+      // Progress bar drag
+      var track = document.getElementById('progress-track');
+      var fill  = document.getElementById('progress-fill');
+      if (track && fill) {
+        var dragging = false, dragRect;
+        function seekByEvent(e) {
+          if (!ytPlayer || !ytPlayer.getDuration) return;
+          var pct = Math.min(1, Math.max(0, (e.clientX - dragRect.left) / dragRect.width));
+          ytPlayer.seekTo(ytPlayer.getDuration() * pct, true);
+          ytPlayer.playVideo();
+        }
+        track.addEventListener('mousedown', function(e) {
+          dragging = true; dragRect = track.getBoundingClientRect();
+          fill.style.transition = 'none'; seekByEvent(e);
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+        function onMove(e) { if (dragging) seekByEvent(e); }
+        function onUp() {
+          dragging = false; fill.style.transition = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+      }
+
+      // Outline links
+      var links = document.querySelectorAll('a.ts');
+      topicItems = Array.from(links).map(function(a) {
+        return { a: a, li: a.closest('li'), t: parseInt(a.getAttribute('data-t'), 10) };
+      });
+
+      links.forEach(function(a) {
+        a.addEventListener('click', function(e) {
+          e.preventDefault();
+          seekToTimestamp(parseInt(this.getAttribute('data-t'), 10), this.closest('li'));
+        });
+      });
+
+      topicItems.forEach(function(item) {
+        item.li.addEventListener('click', function(e) {
+          if (e.target.closest('a.ts')) return;
+          if (item.li.querySelector('.outline-detail')) {
+            var wasExpanded = item.li.classList.contains('expanded');
+            document.querySelectorAll('ol.topics li.expanded').forEach(function(li) { li.classList.remove('expanded'); });
+            if (!wasExpanded) item.li.classList.add('expanded');
+          } else {
+            seekToTimestamp(item.t, item.li);
+          }
+        });
+      });
+
+      // Progress update interval
+      progressInterval = setInterval(function() {
+        if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+        var cur = ytPlayer.getCurrentTime();
+        var dur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
+        var fillEl = document.getElementById('progress-fill');
+        if (fillEl && dur > 0) fillEl.style.width = (cur / dur * 100) + '%';
+        var active = null;
+        topicItems.forEach(function(item) { if (item.t <= cur) active = item.li; });
+        var current = document.querySelector('ol.topics li.active');
+        if (active !== current) setActiveItem(active);
+      }, 1000);
+
+      // Time display interval
+      timeInterval = setInterval(function() {
+        if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+        var el = document.getElementById('time-display');
+        if (!el) return;
+        var cur = ytPlayer.getCurrentTime(), dur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
+        el.textContent = formatTime(cur) + ' / ' + (dur > 0 ? formatTime(dur) : '–:––');
+      }, 500);
+    }
+
+    function setActiveItem(li) {
+      topicItems.forEach(function(item) { item.li.classList.remove('active'); });
+      if (li) { li.classList.add('active'); li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+
+    function seekToTimestamp(t, li) {
+      if (ytPlayer && ytPlayer.seekTo) { ytPlayer.seekTo(t, true); ytPlayer.playVideo(); }
+      else { pendingSeek = t; }
+      setActiveItem(li);
+      var leftEl = document.getElementById('left-panel');
+      if (leftEl) leftEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Synthesis left events ─────────────────────────────────────────────────
+    function bindSynthesisLeftEvents() {
+      document.querySelectorAll('[data-switch-idx]').forEach(function(el) {
+        el.addEventListener('click', function() {
+          switchTab(parseInt(this.getAttribute('data-switch-idx'), 10));
+        });
+      });
+    }
+
+    // ── Common content events (theme, help, export, section nav) ──────────────
+    function bindCommonContentEvents(idx) {
+      // Theme toggle
+      var toggleBtn = document.getElementById('theme-toggle');
+      if (toggleBtn) toggleBtn.addEventListener('click', function() {
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        setTheme(!isDark);
+      });
+
+      // Help button
+      var helpBtn = document.getElementById('help-btn');
+      if (helpBtn) helpBtn.addEventListener('click', function() {
+        document.getElementById('help-overlay').classList.add('open');
+      });
+
+      // MD export
+      var exportBtn = document.getElementById('md-export-btn');
+      if (exportBtn) exportBtn.addEventListener('click', function() {
+        var md = idx === 'synthesis' ? exportAllMarkdown() : exportVideoMarkdown(idx);
+        var blob = new Blob([md], { type: 'text/markdown' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = window.location.pathname.split('/').pop().replace(/\.html$/, '') + (idx === 'synthesis' ? '-synthesis' : '-video' + (idx + 1)) + '.md';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+    }
+
+    // ── Section nav scroll sync ───────────────────────────────────────────────
+    function bindSectionNav() {
+      var navLinks = document.querySelectorAll('.section-nav a');
+      var clicking = false, clickTimer = null;
+      navLinks.forEach(function(a) {
+        a.addEventListener('click', function() {
+          navLinks.forEach(function(l) { l.classList.remove('active'); });
+          this.classList.add('active');
+          clicking = true;
+          clearTimeout(clickTimer);
+          clickTimer = setTimeout(function() { clicking = false; }, 1000);
+        });
+      });
+
+      var rightEl  = document.getElementById('right-panel');
+      var sections = Array.from(document.querySelectorAll('#content-host section'));
+      var hasScrolled = false;
+      rightEl.addEventListener('scroll', function() { hasScrolled = true; }, { once: true });
+
+      if (sectionObserver) sectionObserver.disconnect();
+      sectionObserver = new IntersectionObserver(function(entries) {
+        if (!hasScrolled || clicking) return;
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var id = entry.target.id;
+            navLinks.forEach(function(a) {
+              a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+            });
+          }
+        });
+      }, { root: rightEl, threshold: 0, rootMargin: '0px 0px -75% 0px' });
+      sections.forEach(function(s) { sectionObserver.observe(s); });
+    }
+
+    // ── Theme ─────────────────────────────────────────────────────────────────
+    var SUN_PATH  = '<circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.87" y2="5.87"/><line x1="18.13" y1="18.13" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.87" y2="18.13"/><line x1="18.13" y1="5.87" x2="19.78" y2="4.22"/>';
+    var MOON_PATH = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+
+    function setTheme(dark) {
+      if (dark) { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark'); }
+      else       { document.documentElement.removeAttribute('data-theme');      localStorage.setItem('theme', 'light'); }
+      reapplyTheme();
+    }
+
+    function reapplyTheme() {
+      var icon = document.getElementById('theme-icon');
+      if (!icon) return;
+      icon.innerHTML = document.documentElement.getAttribute('data-theme') === 'dark' ? SUN_PATH : MOON_PATH;
+    }
+
+    // ── Markdown export ───────────────────────────────────────────────────────
+    function exportVideoMarkdown(idx) {
+      var v = BATCH_VIDEOS[idx];
+      var summaryEl  = document.querySelector('#summary p');
+      var takeawayEl = document.querySelector('#takeaway p');
+      var summary  = summaryEl  ? summaryEl.innerText  : '';
+      var takeaway = takeawayEl ? takeawayEl.innerText : '';
+      var keyPoints = Array.from(document.querySelectorAll('#key-points li')).map(function(li) {
+        var detail = li.querySelector('p');
+        var headline = Array.from(li.childNodes)
+          .filter(function(n) { return n.nodeType === 3 || (n.nodeType === 1 && n.tagName !== 'P'); })
+          .map(function(n) { return n.textContent; }).join('').trim();
+        return '- ' + headline + (detail ? '\n  ' + detail.innerText.trim() : '');
+      }).join('\n');
+      var outline = Array.from(document.querySelectorAll('.topics li')).map(function(li) {
+        var tsEl = li.querySelector('a.ts');
+        var t = tsEl ? tsEl.getAttribute('data-t') : '0';
+        var tsText = tsEl ? tsEl.innerText : '0:00';
+        var titleEl = li.querySelector('.outline-title');
+        var detailEl = li.querySelector('.outline-detail');
+        var topicText = titleEl ? titleEl.innerText : li.innerText.replace(tsText, '').trim();
+        var detail = detailEl ? detailEl.innerText.trim() : '';
+        return '- [' + tsText + '](https://www.youtube.com/watch?v=' + v.videoId + '&t=' + t + ') ' + topicText + (detail ? ' — ' + detail : '');
+      }).join('\n');
+      return ['# ' + v.title, '', v.metaLine, '[Watch on YouTube](' + v.videoUrl + ')', '', '---', '', '## Outline', '', outline, '', '## Summary', '', summary, '', '## Takeaway', '', takeaway, '', '## Key Points', '', keyPoints].join('\n');
+    }
+
+    function exportAllMarkdown() {
+      var lines = ['# ' + SYNTHESIS.title, '', '> Batch synthesis across ' + BATCH_VIDEOS.length + ' videos.', '', '---', ''];
+      lines.push('## Overview', '', SYNTHESIS.summary.replace(/<[^>]+>/g, ''), '');
+      var themesText = Array.from(new DOMParser().parseFromString('<ul>' + SYNTHESIS.themes + '</ul>', 'text/html').querySelectorAll('li')).map(function(li) { return '- ' + li.textContent.trim(); }).join('\n');
+      lines.push('## Common Themes', '', themesText, '');
+      if (SYNTHESIS.divergences) lines.push('## Evolution & Divergences', '', SYNTHESIS.divergences.replace(/<[^>]+>/g, ''), '');
+      lines.push('## Synthesis Takeaway', '', SYNTHESIS.takeaway.replace(/<[^>]+>/g, ''), '', '---', '');
+      BATCH_VIDEOS.forEach(function(v, i) {
+        lines.push('## Video ' + (i + 1) + ': ' + v.title, '', v.metaLine, '[Watch on YouTube](' + v.videoUrl + ')', '');
+      });
+      return lines.join('\n');
+    }
+
+    // ── Speed cycling (keyboard) ──────────────────────────────────────────────
+    function cycleSpeed(dir) {
+      var speeds = [1, 1.25, 1.5, 1.75, 2];
+      var active = document.querySelector('.speed-btn.active');
+      if (!active) return;
+      var idx = speeds.indexOf(parseFloat(active.getAttribute('data-speed')));
+      var next = speeds[Math.max(0, Math.min(speeds.length - 1, idx + dir))];
+      if (ytPlayer && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(next);
+      document.querySelectorAll('.speed-btn').forEach(function(b) { b.classList.remove('active'); });
+      var target = document.querySelector('.speed-btn[data-speed="' + next + '"]');
+      if (target) target.classList.add('active');
+    }
+
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Tab navigation
+      if (e.key === '[') {
+        e.preventDefault();
+        if (typeof activeTabIdx === 'number' && activeTabIdx > 0) switchTab(activeTabIdx - 1);
+        return;
+      }
+      if (e.key === ']') {
+        e.preventDefault();
+        var maxIdx = BATCH_VIDEOS.length - 1;
+        if (activeTabIdx === 'synthesis') { /* already last */ }
+        else if (SYNTHESIS && activeTabIdx === maxIdx) switchTab('synthesis');
+        else if (typeof activeTabIdx === 'number' && activeTabIdx < maxIdx) switchTab(activeTabIdx + 1);
+        return;
+      }
+      if (e.key === '0' && SYNTHESIS) { e.preventDefault(); switchTab('synthesis'); return; }
+      var numKey = parseInt(e.key, 10);
+      if (!isNaN(numKey) && numKey >= 1 && numKey <= BATCH_VIDEOS.length) {
+        e.preventDefault(); switchTab(numKey - 1); return;
+      }
+
+      if (typeof activeTabIdx !== 'number') return; // synthesis tab — skip player shortcuts
+
+      if (e.key === ' ' || e.key === 'k') {
+        e.preventDefault();
+        if (ytPlayer && ytPlayer.getPlayerState) ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+      } else if (e.key === 'j' || e.key === 'ArrowLeft') {
+        if (ytPlayer && ytPlayer.getCurrentTime) ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - 5), true);
+      } else if (e.key === 'l' || e.key === 'ArrowRight') {
+        if (ytPlayer && ytPlayer.getCurrentTime) ytPlayer.seekTo(ytPlayer.getCurrentTime() + 5, true);
+      } else if (e.key === '<' || e.key === ',') {
+        cycleSpeed(-1);
+      } else if (e.key === '>' || e.key === '.') {
+        cycleSpeed(1);
+      } else if (e.key === 'f') {
+        e.preventDefault();
+        var el = document.querySelector('.video-wrap');
+        if (el) {
+          if (document.fullscreenElement || document.webkitFullscreenElement) {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          } else {
+            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+          }
+        }
+      }
+    });
+
+    // ── Resizer ───────────────────────────────────────────────────────────────
+    (function() {
+      var resizer = document.getElementById('resizer');
+      var layout  = document.querySelector('.layout');
+      var SPLIT_KEY = 'distillery:split', DEFAULT_SPLIT = 45;
+      var saved = localStorage.getItem(SPLIT_KEY);
+      if (saved) document.documentElement.style.setProperty('--left-w', saved + '%');
+
+      resizer.addEventListener('mousedown', function(e) {
+        e.preventDefault(); resizer.classList.add('dragging');
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+      });
+      resizer.addEventListener('dblclick', function() {
+        document.documentElement.style.setProperty('--left-w', DEFAULT_SPLIT + '%');
+        localStorage.removeItem(SPLIT_KEY);
+      });
+      function onDrag(e) {
+        var pct = Math.min(Math.max((e.clientX / window.innerWidth) * 100, 20), maxVideoSplit());
+        document.documentElement.style.setProperty('--left-w', pct + '%');
+      }
+      function stopDrag() {
+        resizer.classList.remove('dragging');
+        document.removeEventListener('mousemove', onDrag);
+        document.removeEventListener('mouseup', stopDrag);
+        var cur = document.documentElement.style.getPropertyValue('--left-w');
+        if (cur) localStorage.setItem(SPLIT_KEY, parseFloat(cur).toFixed(1));
+      }
+      function maxVideoSplit() {
+        var maxH = window.innerHeight - 220;
+        return Math.min(80, Math.max(20, (maxH * 16 / 9 / window.innerWidth) * 100));
+      }
+    })();
+
+    // ── Help modal global handlers ────────────────────────────────────────────
+    document.getElementById('help-close').addEventListener('click', function() {
+      document.getElementById('help-overlay').classList.remove('open');
+    });
+    document.getElementById('help-overlay').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') document.getElementById('help-overlay').classList.remove('open');
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      buildTabBar();
+      switchTab(0);
+    })();
+  </script>
+<script type="application/json" id="distillery-meta">{{BATCH_DISTILLERY_META}}</script>
+</body>
+</html>
