@@ -13,7 +13,6 @@ Distillery is a coding agent skill that fetches a YouTube transcript and generat
 - **Key points** — bulleted, scannable insights with supporting detail
 - **Timestamped outline** — click topics to expand summaries; click timestamps to jump the player
 - **In-page YouTube player** — watch while reading; auto-highlights the current section
-- **Keyboard shortcuts** — playback speed, layout resize (S/M/L), navigation, and more (`?` for help)
 - **Markdown export** — copy the full report as Markdown in one click
 - **Dark mode** — auto-detects system preference; remembered across sessions
 - **Video gallery** — browse, search, and filter all your saved reports by title, channel, tag, or keyword

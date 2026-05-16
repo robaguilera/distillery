@@ -152,6 +152,7 @@ def canonical_to_template_keys(extraction: dict) -> dict:
         "OUTLINE":              _outline_to_html(extraction.get("outline", []), video_id),
         "DESCRIPTION_SECTION":  description_section,
         "VIDEO_LENS_META":      json.dumps(meta_obj, ensure_ascii=False).replace("</", "<\\/"),
+        "TRANSCRIPT":           html_mod.escape(extraction.get("transcript", "")),
     }
 
 

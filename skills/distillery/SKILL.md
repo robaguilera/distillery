@@ -198,25 +198,7 @@ Each object has:
 | Long (45–90 min) | 3–4 sentences | 3–4 sentences | 8–15 entries |
 | Very long (>90 min) | 3–4 sentences | 3–4 sentences | 10–20 entries |
 
-### 4. Select the View
-
-Write a brief condensed version of the video to the conversation — 1–2 short paragraphs drawn from your Canonical Extraction. This gives the user a taste before committing to a full report.
-
-Then recommend one of the three available views with a single-sentence reason:
-
-- **Default** — balanced summary, key points with analytical depth, and outline. Good for most videos.
-- **Executive Brief** — concise 2-para summary + headline-only key points. Good for long talks, interviews, or board-level content where depth is secondary to decision-making.
-- **Study Guide** — key concepts with full analytical paragraphs as the primary section, followed by the complete outline. Good for dense instructional, tutorial, or lecture content.
-
-> "Based on [brief reason], I'd suggest the **[View Name]** view. Want to go with that, or choose a different view?"
-
-Wait for the user's response.
-
-- **Accepts** ("yes", "sure", "go ahead", "ok", or silence on re-prompt): proceed with recommended view.
-- **Names a different view**: use that view instead.
-- **Asks what the views are**: describe all three briefly, then ask again.
-
-### 5. Determine the filename and render the report
+### 4. Determine the filename and render the report
 
 **Determine the output filename:**
 - Date: `date` field from the ingest JSON (Step 2)
@@ -231,15 +213,16 @@ Wait for the user's response.
 Pipe the completed Canonical Extraction JSON to `render_report.py`. The script converts it to HTML, writes the output file, and saves a `.json` sidecar alongside it.
 
 Assemble the final JSON by starting with the Canonical Extraction from Step 3 and adding:
-- `view`: the view name selected in Step 4 (`"default"`, `"study-guide"`, or `"executive-brief"`)
+- `view`: `"default"`
 - `filename`: the basename from above (e.g. `2026-03-06-210126-distillery_dQw4w9WgXcQ_slug.html`)
 - `descriptionHtml`: `description_html` value from the ingest JSON (or `""` if empty)
 - `langWarn`: `lang_warn` value from the ingest JSON (`false` if not present)
+- `transcript`: `transcript` value from the ingest JSON (the full timestamped transcript text)
 
 Run this as a single Bash command. Build the JSON object inside a heredoc and pipe it to the render script. Replace `OUTPUT_PATH` with the absolute output path.
 
 ```bash
-source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" << 'PYEOF' | "$_py" "$SKILL_DIR/render_report.py" --view "VIEW" "OUTPUT_PATH"
+source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" << 'PYEOF' | "$_py" "$SKILL_DIR/render_report.py" --view "default" "OUTPUT_PATH"
 import json, sys
 canonical = {
     "schemaVersion":  1,
@@ -250,7 +233,7 @@ canonical = {
     "views":          "VIEWS",
     "publishDate":    "PUBLISHED",
     "generationDate": "DATE",
-    "view":           "VIEW",
+    "view":           "default",
     "summary":        "SUMMARY_TEXT",
     "takeaway":       "TAKEAWAY_TEXT",
     "keyPoints": [
@@ -264,14 +247,13 @@ canonical = {
     "filename":       "FILENAME",
     "descriptionHtml": "",
     "langWarn":       False,
+    "transcript":     "TRANSCRIPT_TEXT",
 }
 json.dump(canonical, sys.stdout)
 PYEOF
 ```
 
-Replace `VIEW` in both `--view "VIEW"` and `"view": "VIEW"` with the actual selected view identifier.
-
-### 6. Serve and open
+### 5. Serve and open
 
 The embedded YouTube player requires HTTP — `file://` URLs are blocked (Error 153). After writing the file, run the serve script which kills any existing server on port 8765, starts a new one, opens the browser, and prints `HTML_REPORT: <path>`.
 
@@ -279,11 +261,11 @@ The embedded YouTube player requires HTTP — `file://` URLs are blocked (Error 
 source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; bash "$SKILL_DIR/serve_report.sh" "OUTPUT_PATH" ~/Downloads/distillery
 ```
 
-Replace `OUTPUT_PATH` with the absolute path to the HTML file from Step 5. The second argument pins the server root to `~/Downloads/distillery` so the URL is always `http://localhost:8765/reports/<filename>.html`. The script keeps a single server running on port 8765 — all files under `~/Downloads/distillery` (reports, gallery index, manifest) remain accessible.
+Replace `OUTPUT_PATH` with the absolute path to the HTML file from Step 4. The second argument pins the server root to `~/Downloads/distillery` so the URL is always `http://localhost:8765/reports/<filename>.html`. The script keeps a single server running on port 8765 — all files under `~/Downloads/distillery` (reports, gallery index, manifest) remain accessible.
 
-### 7. Update the Knowledge Base
+### 6. Update the Knowledge Base
 
-After serving the report, add it to the Knowledge Base so it appears in the gallery index immediately. Pass the path to the `.json` sidecar written in Step 5.
+After serving the report, add it to the Knowledge Base so it appears in the gallery index immediately. Pass the path to the `.json` sidecar written in Step 4.
 
 ```bash
 source ~/.distillery/claude.env 2>/dev/null || { echo "WARNING: knowledge base update skipped — Distillery env not found"; exit 0; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" "$SKILL_DIR/knowledge_base.py" store "SIDECAR_JSON_PATH"

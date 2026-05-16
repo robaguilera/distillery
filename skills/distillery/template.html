@@ -1705,7 +1705,13 @@
           '## Key Points',
           '',
           keyPoints,
-        ].concat(description ? ['', '## YouTube Description', '', description] : []).join('\n');
+        ].concat(description ? ['', '## YouTube Description', '', description] : [])
+         .concat((function () {
+           var el = document.getElementById('distillery-transcript');
+           var t = el ? el.innerText.trim() : '';
+           return t ? ['', '## Transcript', '', t] : [];
+         })())
+         .join('\n');
 
         // Trigger download
         var blob = new Blob([md], { type: 'text/markdown' });
@@ -1727,37 +1733,6 @@
         document.querySelector('.speed-btn[data-speed="' + next + '"]').classList.add('active');
       }
 
-      document.addEventListener('keydown', function (e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        if (e.metaKey || e.ctrlKey || e.altKey) return;
-        if (e.key === ' ' || e.key === 'k') {
-          e.preventDefault();
-          if (ytPlayer && ytPlayer.getPlayerState) {
-            ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
-          }
-        } else if (e.key === 'j' || e.key === 'ArrowLeft') {
-          if (ytPlayer && ytPlayer.getCurrentTime)
-            ytPlayer.seekTo(Math.max(0, ytPlayer.getCurrentTime() - 5), true);
-        } else if (e.key === 'l' || e.key === 'ArrowRight') {
-          if (ytPlayer && ytPlayer.getCurrentTime)
-            ytPlayer.seekTo(ytPlayer.getCurrentTime() + 5, true);
-        } else if (e.key === 'c') {
-          toggleCaptions();
-        } else if (e.key === 'f') {
-          e.preventDefault();
-          toggleFullscreen();
-        } else if (e.key === '<' || e.key === ',') {
-          cycleSpeed(-1);
-        } else if (e.key === '>' || e.key === '.') {
-          cycleSpeed(1);
-        } else if (e.key === '1') {
-          applySplit(30);
-        } else if (e.key === '2') {
-          applySplit(45);
-        } else if (e.key === '3') {
-          applySplit(maxVideoSplit());
-        }
-      });
 
       // Draggable resizer + split presets
       var resizer = document.getElementById('resizer');
@@ -1812,6 +1787,7 @@
       }
     </script>
 <script type="application/json" id="distillery-meta">{{VIDEO_LENS_META}}</script>
+<div id="distillery-transcript" style="display:none">{{TRANSCRIPT}}</div>
 </body>
 
 </html>
