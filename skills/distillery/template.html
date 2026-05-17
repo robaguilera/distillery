@@ -783,6 +783,20 @@
       transition: color 0.15s, border-color 0.15s;
     }
 
+    .section-nav .gallery-link {
+      opacity: 0.6;
+      letter-spacing: 0.05em;
+    }
+
+    .section-nav .gallery-link:hover {
+      opacity: 1;
+    }
+
+    .section-nav .nav-sep {
+      color: var(--right-border);
+      user-select: none;
+    }
+
     .section-nav a.active {
       color: var(--left-link);
       border-bottom-color: var(--left-link);
@@ -1028,6 +1042,8 @@
     <div class="right">
 
       <nav class="section-nav">
+        <a href="../index.html" class="gallery-link">← Gallery</a>
+        <span class="nav-sep">|</span>
         <a href="#summary" class="active">Summary</a>
         <a href="#takeaway">Takeaway</a>
         <a href="#key-points">Key Points</a>
