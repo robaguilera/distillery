@@ -23,11 +23,8 @@ import sys
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
-# Constants (shared with build_index.py for backward compat)
+# Constants
 # ---------------------------------------------------------------------------
-
-SCRIPT_START = '<script type="application/json" id="distillery-meta">'
-SCRIPT_END = "</script>"
 
 _CHAN_DURATION_RE = re.compile(r'^\d+\s*(min|h\b)', re.IGNORECASE)
 _CHAN_DATE_RE = re.compile(
@@ -118,34 +115,19 @@ def _sanitize_channel(value: str) -> str:
 
 
 def _extract_meta(path: pathlib.Path) -> dict | None:
-    """Extract metadata from a report HTML file.
+    """Extract metadata from a report's .json sidecar file.
 
-    Prefers sidecar .json (schemaVersion 1+) when present; falls back to
-    embedded <script id="distillery-meta"> block.
+    Returns the sidecar dict if found, or None if no sidecar exists.
+    Legacy reports without a sidecar are skipped; use migrate_legacy() /
+    backfill_meta.py to handle those explicitly.
     """
     sidecar = path.with_suffix(".json")
     if sidecar.exists():
         try:
-            data = json.loads(sidecar.read_text(encoding="utf-8"))
-            if data.get("schemaVersion"):
-                return data
+            return json.loads(sidecar.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             pass
-
-    content = path.read_text(encoding="utf-8", errors="replace")
-    i = content.find(SCRIPT_START)
-    if i == -1:
-        return None
-    i += len(SCRIPT_START)
-    j = content.find(SCRIPT_END, i)
-    if j == -1:
-        return None
-    raw = content[i:j].strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"WARNING: invalid JSON in {path.name}: {e}", file=sys.stderr)
-        return None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +253,7 @@ def rebuild(scan_dir: str) -> None:
             meta = _extract_meta(path)
             if meta is None:
                 skipped += 1
-                print(f"SKIP (no meta block): reports/{path.name}", file=sys.stderr)
+                print(f"  skipped (no sidecar): reports/{path.name}")
                 continue
             meta["filename"] = "reports/" + path.name
             seen.add(path.name)
@@ -289,7 +271,7 @@ def rebuild(scan_dir: str) -> None:
         meta = _extract_meta(path)
         if meta is None:
             skipped += 1
-            print(f"SKIP (no meta block): {path.name}", file=sys.stderr)
+            print(f"  skipped (no sidecar): {path.name}")
             continue
         if not meta.get("filename"):
             meta["filename"] = path.name

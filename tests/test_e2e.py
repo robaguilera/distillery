@@ -114,9 +114,10 @@ def test_build_index(tmp_path):
     """Fast, no-network check: build_index.py scans reports and writes manifest.json."""
     BUILD_INDEX = GALLERY_SCRIPT_DIR / "build_index.py"
 
-    # Create two sample reports with distillery-meta blocks
+    # Create a sample report with a .json sidecar (the sidecar is the metadata source of truth)
     vid, title, gen_date = "bjdBVZa66oU", "Test Video One", "2025-01-01"
-    meta = json.dumps({
+    meta = {
+        "schemaVersion": 1,
         "videoId": vid,
         "title": title,
         "channel": "Test Channel",
@@ -127,14 +128,14 @@ def test_build_index(tmp_path):
         "tags": ["test"],
         "keywords": ["Point"],
         "filename": f"{gen_date}-000000-distillery_test_0.html",
-    })
+    }
     report = tmp_path / f"{gen_date}-000000-distillery_test_0.html"
     report.write_text(
-        f'<html><body>'
-        f'<script type="application/json" id="distillery-meta">{meta}</script>'
-        f'</body></html>',
+        '<html><body><p>Test report.</p></body></html>',
         encoding="utf-8",
     )
+    sidecar = report.with_suffix(".json")
+    sidecar.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
 
     r = subprocess.run(
         [sys.executable, str(BUILD_INDEX), "--dir", str(tmp_path)],

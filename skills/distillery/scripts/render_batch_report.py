@@ -19,6 +19,11 @@ try:
 except (ImportError, ValueError):
     import render_fragments as _frag
 
+try:
+    from . import canonical as _canonical
+except (ImportError, ValueError):
+    import canonical as _canonical
+
 EXPECTED_KEYS = {"BATCH_TITLE", "BATCH_VIDEOS_JSON", "SYNTHESIS_JSON"}
 AGENT_DIRS = ("agents", "claude", "copilot", "gemini", "cursor", "windsurf", "opencode", "codex")
 
@@ -111,6 +116,16 @@ def render(data: dict, output_path: str, template_path: pathlib.Path | None = No
     out = pathlib.Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
+
+    # Write sidecar so the Knowledge Base has a clean metadata source
+    meta_raw = data.get("BATCH_DISTILLERY_META")
+    if meta_raw:
+        try:
+            meta_dict = json.loads(meta_raw) if isinstance(meta_raw, str) else meta_raw
+            _canonical.write_sidecar(meta_dict, str(out))
+        except Exception as exc:
+            print(f"WARNING: could not write batch sidecar: {exc}", file=sys.stderr)
+
     return str(out)
 
 
