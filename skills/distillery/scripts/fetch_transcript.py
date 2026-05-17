@@ -5,6 +5,7 @@ Usage: python3 fetch_transcript.py VIDEO_ID [LANG_PREF]
 """
 import argparse
 import datetime
+import json
 import pathlib
 import re
 import sys
@@ -12,7 +13,7 @@ import urllib.request
 
 # Shared formatting helpers — single source of truth in media_format.py
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from media_format import _format_views, _format_duration, _format_published  # noqa: E402
+from media_format import _format_duration, _format_published, _format_views  # noqa: E402
 
 
 def _fetch_html_metadata(video_id):
@@ -65,16 +66,19 @@ def main():
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
     except ImportError:
-        print("ERROR:LIBRARY_MISSING: pip install 'youtube-transcript-api>=0.6.3'")
+        print(json.dumps(
+            {"error": "ERROR:LIBRARY_MISSING: pip install 'youtube-transcript-api>=0.6.3'"},
+            ensure_ascii=False,
+        ))
         sys.exit(1)
 
     # Defensive imports — fall back to generic handling if classes are renamed/removed
     try:
         from youtube_transcript_api import (
+            InvalidVideoId,
+            NoTranscriptFound,
             TranscriptsDisabled,
             VideoUnavailable,
-            NoTranscriptFound,
-            InvalidVideoId,
         )
     except ImportError:
         TranscriptsDisabled = VideoUnavailable = NoTranscriptFound = InvalidVideoId = None
@@ -83,8 +87,8 @@ def main():
         from youtube_transcript_api import (
             AgeRestricted,
             IpBlocked,
-            RequestBlocked,
             PoTokenRequired,
+            RequestBlocked,
             YouTubeRequestFailed,
         )
     except ImportError:
@@ -114,8 +118,11 @@ def main():
             if cls is not None and isinstance(e, cls):
                 code = mapped_code
                 break
-        print(f"{code}: {e}")
+        print(json.dumps({"error": f"{code}: {e}"}, ensure_ascii=False))
         sys.exit(1)
+
+    lang_warn = False
+    lang_warn_msg = ""
 
     transcript_obj = None
     if lang_pref:
@@ -138,7 +145,11 @@ def main():
                     break
             if transcript_obj is None:
                 transcript_obj = next(iter(tlist))
-            print(f'LANG_WARN: Requested language "{lang_pref}" not available; using {transcript_obj.language_code}')
+            lang_warn = True
+            lang_warn_msg = (
+                f'Requested language "{lang_pref}" not available; '
+                f"using {transcript_obj.language_code}"
+            )
     else:
         # Prefer English when no language is requested
         for t in tlist:
@@ -162,24 +173,14 @@ def main():
     try:
         transcript = transcript_obj.fetch()
     except Exception as e:
-        print(f"ERROR:TRANSCRIPT_FETCH_FAILED: {e}")
+        print(json.dumps({"error": f"ERROR:TRANSCRIPT_FETCH_FAILED: {e}"}, ensure_ascii=False))
         sys.exit(1)
     lang = transcript_obj.language_code
 
     # Detect entry type once before the loop
     use_dict = isinstance(transcript[0], dict) if transcript else False
 
-    lines = [
-        f"TITLE: {title}",
-        f"CHANNEL: {channel}",
-        f"PUBLISHED: {published}",
-        f"VIEWS: {views}",
-        f"DURATION: {duration}",
-        f"DATE: {datetime.date.today().isoformat()}",
-        f"TIME: {datetime.datetime.now().strftime('%H%M%S')}",
-        f"LANG: {lang}",
-    ]
-
+    transcript_lines = []
     for s in transcript:
         text = s["text"] if use_dict else s.text
         start = s["start"] if use_dict else s.start
@@ -187,11 +188,23 @@ def main():
         h, rem = divmod(total_s, 3600)
         m2, s2 = divmod(rem, 60)
         if h > 0:
-            lines.append(f"[{h}:{m2:02d}:{s2:02d}] {text}")
+            transcript_lines.append(f"[{h}:{m2:02d}:{s2:02d}] {text}")
         else:
-            lines.append(f"[{m2}:{s2:02d}] {text}")
+            transcript_lines.append(f"[{m2}:{s2:02d}] {text}")
 
-    print("\n".join(lines))
+    print(json.dumps({
+        "title":        title,
+        "channel":      channel,
+        "published":    published,
+        "views":        views,
+        "duration":     duration,
+        "date":         datetime.date.today().isoformat(),
+        "time":         datetime.datetime.now().strftime("%H%M%S"),
+        "lang":         lang,
+        "lang_warn":    lang_warn,
+        "lang_warn_msg": lang_warn_msg,
+        "transcript":   "\n".join(transcript_lines),
+    }, ensure_ascii=False))
 
 
 if __name__ == "__main__":
