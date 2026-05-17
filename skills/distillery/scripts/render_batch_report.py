@@ -13,6 +13,11 @@ import pathlib
 import re
 import sys
 
+try:
+    from . import render_fragments as _frag
+except (ImportError, ValueError):
+    import render_fragments as _frag
+
 EXPECTED_KEYS = {"BATCH_TITLE", "BATCH_VIDEOS_JSON", "SYNTHESIS_JSON"}
 AGENT_DIRS = ("agents", "claude", "copilot", "gemini", "cursor", "windsurf", "opencode", "codex")
 
@@ -41,9 +46,56 @@ def safe_for_script(s: str) -> str:
     return s.replace("</", "<\\/").replace("<!--", "<\\!--")
 
 
+def _prepare_video_data(v: dict) -> dict:
+    """Ensure a video dict has the HTML fragments expected by template_batch.html."""
+    if "schemaVersion" in v:
+        # It's a Canonical Extraction — convert it
+        video_id = v.get("videoId", "")
+        return {
+            "videoId": video_id,
+            "title": v.get("title", ""),
+            "videoUrl": f"https://www.youtube.com/watch?v={video_id}",
+            "metaLine": _frag.meta_line(v),
+            "summary": v.get("summary", ""),
+            "takeaway": v.get("takeaway", ""),
+            "keyPoints": _frag.key_points_to_html(v.get("keyPoints", [])),
+            "outline": _frag.outline_to_html(v.get("outline", []), video_id),
+            "descriptionSection": _frag.description_section(v.get("descriptionHtml", "")),
+            "tags": v.get("tags", []),
+            "keywords": v.get("keywords", []),
+        }
+    return v
+
+
+def _prepare_synthesis_data(s: dict) -> dict:
+    """Ensure synthesis dict has the HTML fragments expected by template_batch.html."""
+    if s and "themes" in s and isinstance(s["themes"], list):
+        s["themes"] = _frag.themes_to_html(s["themes"])
+    return s
+
+
 def render(data: dict, output_path: str, template_path: pathlib.Path | None = None) -> str:
     if template_path is None:
         template_path = find_template()
+
+    # Process videos to ensure they have the HTML fragments the JS expects
+    videos_raw = data.get("BATCH_VIDEOS_JSON", "[]")
+    try:
+        videos = json.loads(videos_raw) if isinstance(videos_raw, str) else videos_raw
+        processed_videos = [_prepare_video_data(v) for v in videos]
+        data["BATCH_VIDEOS_JSON"] = json.dumps(processed_videos, ensure_ascii=False)
+    except Exception:
+        pass
+
+    # Process synthesis to ensure it has the HTML fragments the JS expects
+    synth_raw = data.get("SYNTHESIS_JSON", "null")
+    try:
+        if synth_raw and synth_raw != "null":
+            synth = json.loads(synth_raw) if isinstance(synth_raw, str) else synth_raw
+            processed_synth = _prepare_synthesis_data(synth)
+            data["SYNTHESIS_JSON"] = json.dumps(processed_synth, ensure_ascii=False)
+    except Exception:
+        pass
 
     html = template_path.read_text(encoding="utf-8")
     for key, value in data.items():

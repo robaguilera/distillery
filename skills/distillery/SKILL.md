@@ -4,9 +4,6 @@ description: Fetch a YouTube transcript and generate an executive summary, key p
 license: MIT
 compatibility: "Requires Python 3 and youtube-transcript-api >=0.6.3. Optional but recommended: yt-dlp for enriched metadata and chapters."
 allowed-tools: Bash Read
-metadata:
-  author: kar2phi
-  version: "3.0"
 ---
 
 You are a YouTube content analyst. Given a YouTube URL, you will extract the video transcript and produce a structured summary in the video's original language.
@@ -322,28 +319,15 @@ Wait for the user's response.
 
 ### B2. Process all videos
 
-Each video requires running **Steps 1, 2, and 3** (parse ID → ingest → generate content). Do **not** run Steps 4–7 yet. Collect the results into a per-video data object:
-
-```
-videoId, title, videoUrl, metaLine,
-summary, takeaway, keyPoints (HTML), outline (HTML), descriptionSection (HTML or "")
-```
-
-For the per-video HTML fields, convert from the Canonical Extraction JSON:
-- `metaLine` = `channel · duration · publishDate · views` (omit blank fields)
-- `keyPoints` (HTML) = render each keyPoints object as `<li><strong>headline</strong>\n<p>body</p></li>`
-- `outline` (HTML) = render each outline object as the standard `<li><a class="ts" ...>` format
-- `descriptionSection` (HTML) = `<details class="description-details">...</details>` if description_html is non-empty, else `""`
-
-Use `date` and `time` from the **first** video's ingest output for the batch filename.
+Each video requires running **Steps 1, 2, and 3** (parse ID → ingest → generate content).
 
 **For N = 2:** process sequentially — run Steps 1–3 for video 1, then video 2.
 
 **For N ≥ 3:** spawn one subagent per video in parallel. Each subagent receives the video URL and this instruction:
 
-> "Run Steps 1, 2, and 3 of the distillery skill for this URL: `URL`. After completing Step 3, output a single JSON object — and nothing else — with these exact keys: `videoId`, `title`, `videoUrl`, `metaLine`, `summary`, `takeaway`, `keyPoints` (HTML `<li>` string), `outline` (HTML `<li>` string), `descriptionSection` (HTML or empty string). Convert the Canonical Extraction from Step 3 into the HTML format expected by the batch renderer."
+> "Run Steps 1, 2, and 3 of the distillery skill for this URL: `URL`. After completing Step 3, output the Canonical Extraction JSON object — and nothing else."
 
-Wait for all N subagents to complete. Parse each subagent's JSON output. If a subagent fails or returns malformed JSON, fall back to processing that video sequentially.
+Wait for all N subagents to complete. Collect all N Canonical Extraction JSON objects.
 
 After all N videos are processed, ask:
 
@@ -355,21 +339,21 @@ If the user provides a synthesis topic, continue to B3.
 
 ### B3. Generate synthesis content
 
-Analyse all N transcripts and summaries together. Produce synthesis fields. Write in the dominant language of the video set.
+Analyse all N transcripts and summaries together. Produce a Synthesis JSON object in the dominant language of the video set.
 
-**Synthesis Title** — refine or adopt the user's phrase as a concise title.
+**Synthesis JSON format:**
 
-**Synthesis Summary** (`summary`) — 3–5 sentences. High-level thesis: what does this set of videos collectively argue, demonstrate, or reveal that no single video fully captures?
-
-**Common Themes** (`themes`) — 4–8 `<li>` items in the same Key Points HTML format:
-```html
-<li><strong>Theme Name</strong> — one sentence on why it appears across the set.
-<p>2–3 sentence paragraph: how it manifests across specific videos, what it reveals, any tension or nuance.</p></li>
+```json
+{
+  "title": "Synthesis Title",
+  "summary": "3–5 sentence synthesis summary.",
+  "themes": [
+    { "headline": "Theme Name", "body": "2–3 sentence analytical paragraph." }
+  ],
+  "divergences": "2–4 plain-text sentences where the videos differ, or null",
+  "takeaway": "1–3 plain-text sentences: the single most important insight from the collection."
+}
 ```
-
-**Evolution & Divergences** (`divergences`) — 2–4 plain-text sentences where the videos differ. Use `""` if all videos are highly aligned.
-
-**Synthesis Takeaway** (`takeaway`) — 1–3 plain-text sentences: the single most important insight from the collection as a whole.
 
 ### B4. Determine batch filename
 
@@ -377,63 +361,41 @@ Analyse all N transcripts and summaries together. Produce synthesis fields. Writ
 - Title slug: slugify the synthesis title (or `batch_report` if no synthesis)
 - Output directory: `~/Downloads/distillery/reports/`
 - Filename: `YYYY-MM-DD-HHMMSS-distillery-batch_<slug>.html`
+- Output path: absolute path using the directory and filename above.
 
 ### B5. Render the batch report
 
+Construct a single **Batch Manifest** JSON object and pipe it to `batch.py manifest`. This combines everything into the final report in one turn.
+
 ```bash
-source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" << 'PYEOF' | "$_py" "$SKILL_DIR/render_batch_report.py" "OUTPUT_PATH"
-import json, sys
-
-videos = [
-    {
-        "videoId":           "VIDEO_ID_1",
-        "title":             "Title of Video 1",
-        "videoUrl":          "https://www.youtube.com/watch?v=VIDEO_ID_1",
-        "metaLine":          "Channel · Duration · Date · Views",
-        "summary":           "Plain-text summary",
-        "takeaway":          "Plain-text takeaway",
-        "keyPoints":         """<li>...</li>""",
-        "outline":           """<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v=VIDEO_ID_1&t=0" target="_blank" rel="noopener noreferrer">▶ 0:00</a> — <span class="outline-title">Title</span><span class="outline-detail">Detail.</span></li>""",
-        "descriptionSection": "",
-    },
-    # … one object per video …
-]
-
-synthesis = {
-    "title":       "Synthesis Title",
-    "summary":     "Plain-text synthesis summary",
-    "themes":      """<li>...</li>""",
-    "divergences": "Plain-text divergences (or empty string)",
-    "takeaway":    "Plain-text synthesis takeaway",
+source ~/.distillery/gemini.env 2>/dev/null || { echo "Distillery not installed"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" "$SKILL_DIR/batch.py" manifest << 'PYEOF'
+{
+  "title": "BATCH_TITLE",
+  "output": "OUTPUT_PATH",
+  "distillations": [
+    { "VIDEO_1_CANONICAL_JSON" },
+    { "VIDEO_2_CANONICAL_JSON" }
+  ],
+  "synthesis": { "SYNTHESIS_JSON" }
 }
-# If no synthesis was requested, set: synthesis = None
-
-json.dump({
-    "BATCH_TITLE":       "Batch Title (e.g. Warren Buffett: 3 Videos)",
-    "BATCH_VIDEOS_JSON": json.dumps(videos),
-    "SYNTHESIS_JSON":    json.dumps(synthesis),
-}, sys.stdout)
 PYEOF
 ```
 
-**Field rules:**
-- `summary`, `takeaway`, `divergences`, `title`: plain text — no HTML tags
-- `keyPoints`: `<li>` tags as described in B2
-- `outline`: `<li>` tags with correct `VIDEO_ID` per video
-- `descriptionSection`: either the `<details>…</details>` block, or `""`
-- `synthesis`: the synthesis dict (B3 fields), or `None` if user declined
-- `BATCH_TITLE`: short descriptive title for the page
+- `BATCH_TITLE`: The synthesis title, or "Batch Report" if none.
+- `OUTPUT_PATH`: The absolute path from B4.
+- `distillations`: The list of Canonical Extraction JSON objects from B2.
+- `synthesis`: The Synthesis JSON object from B3 (or `null` if skipped).
 
 ### B6. Serve and open
 
 ```bash
-source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; bash "$SKILL_DIR/serve_report.sh" "OUTPUT_PATH" ~/Downloads/distillery
+source ~/.distillery/gemini.env 2>/dev/null || { echo "Distillery not installed"; exit 1; }; bash "$SKILL_DIR/serve_report.sh" "OUTPUT_PATH" ~/Downloads/distillery
 ```
 
 ### B7. Update the Knowledge Base
 
 ```bash
-source ~/.distillery/claude.env 2>/dev/null || { echo "WARNING: knowledge base update skipped"; exit 0; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" "$SKILL_DIR/knowledge_base.py" rebuild --dir ~/Downloads/distillery
+source ~/.distillery/gemini.env 2>/dev/null || { echo "WARNING: knowledge base update skipped"; exit 0; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" "$SKILL_DIR/knowledge_base.py" rebuild --dir ~/Downloads/distillery
 ```
 
 ---

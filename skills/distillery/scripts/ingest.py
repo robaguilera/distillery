@@ -6,40 +6,11 @@ Usage: python3 ingest.py VIDEO_ID [LANG_PREF]
 Calls fetch_transcript.py and fetch_metadata.py as subprocesses, merges
 their outputs with yt-dlp winning on channel/published/views/duration,
 and prints a single JSON object to stdout.
-
-Shared formatting helpers (_format_views, _format_duration, _format_published)
-live here so both fetch scripts can import them from one place.
 """
 import json
 import pathlib
 import subprocess
 import sys
-
-
-# ── Shared formatting helpers ─────────────────────────────────────────────
-
-def _format_views(vc) -> str:
-    if vc is None:
-        return ""
-    vc = int(vc)
-    return (f"{vc/1e6:.1f}M views" if vc >= 1_000_000
-            else f"{vc/1e3:.0f}K views" if vc >= 1_000
-            else f"{vc} views")
-
-
-def _format_duration(dur_s) -> str:
-    h, rem = divmod(int(dur_s or 0), 3600)
-    m2 = rem // 60
-    return f"{h}h {m2}m" if h > 0 else f"{m2} min"
-
-
-def _format_published(upload_date: str) -> str:
-    """Format YYYYMMDD string → 'Mon DD YYYY'."""
-    if len(upload_date) != 8:
-        return ""
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    return f"{months[int(upload_date[4:6])-1]} {int(upload_date[6:8])} {upload_date[:4]}"
 
 
 # ── Output parsers ─────────────────────────────────────────────────────────

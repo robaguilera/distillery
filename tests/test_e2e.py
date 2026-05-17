@@ -34,7 +34,7 @@ SAMPLE_META = json.dumps({
 
 
 def test_template_placeholders(tmp_path):
-    """Fast, no-network check: all 10 keys replaced, no {{...}} remain."""
+    """Fast, no-network check: all keys replaced, no {{...}} remain."""
     out = tmp_path / "report.html"
     render({
         "VIDEO_ID":            "TEST_VIDEO_ID",
@@ -47,6 +47,7 @@ def test_template_placeholders(tmp_path):
         "OUTLINE":             "TEST_OUTLINE",
         "DESCRIPTION_SECTION": "TEST_DESCRIPTION_SECTION",
         "VIDEO_LENS_META":     SAMPLE_META,
+        "TRANSCRIPT":          "[0:00] Test transcript.",
     }, str(out), template_path=TEMPLATE)
     html = out.read_text(encoding="utf-8")
     assert "{{" not in html, "Unreplaced placeholders found in rendered HTML"
@@ -67,6 +68,7 @@ def test_render_and_serve(tmp_path):
         "OUTLINE":             f'<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v={VIDEO_ID}&t=0" target="_blank">▶ 0:00</a> — <span class="outline-title">Intro</span><span class="outline-detail"> Opening.</span></li>',
         "DESCRIPTION_SECTION": "",
         "VIDEO_LENS_META":     SAMPLE_META,
+        "TRANSCRIPT":          "[0:00] E2E test transcript.",
     }, str(out), template_path=TEMPLATE)
     assert out.exists()
     html = out.read_text(encoding="utf-8")

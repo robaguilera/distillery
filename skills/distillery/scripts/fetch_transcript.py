@@ -10,9 +10,9 @@ import re
 import sys
 import urllib.request
 
-# Shared formatting helpers from ingest.py (single source of truth)
+# Shared formatting helpers — single source of truth in media_format.py
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from ingest import _format_views, _format_duration, _format_published  # noqa: E402
+from media_format import _format_views, _format_duration, _format_published  # noqa: E402
 
 
 def _fetch_html_metadata(video_id):

@@ -20,9 +20,15 @@ import pathlib
 import re
 import sys
 
+try:
+    from . import render_fragments as _frag
+except (ImportError, ValueError):
+    import render_fragments as _frag
+
 EXPECTED_KEYS = {
     "VIDEO_ID", "VIDEO_TITLE", "VIDEO_URL", "META_LINE", "SUMMARY",
     "KEY_POINTS", "TAKEAWAY", "OUTLINE", "DESCRIPTION_SECTION", "VIDEO_LENS_META",
+    "TRANSCRIPT",
 }
 
 AGENT_DIRS = ("agents", "claude", "copilot", "gemini", "cursor", "windsurf", "opencode", "codex")
@@ -61,57 +67,17 @@ def find_template(view: str = "default") -> pathlib.Path:
 
 # ── Canonical Extraction → template key conversion ────────────────────────
 
+# Thin aliases kept for any code that still references these private names.
 def _key_points_to_html(key_points: list) -> str:
-    parts = []
-    for kp in key_points:
-        headline = html_mod.escape(kp.get("headline", ""))
-        body = kp.get("body", "")
-        quote = kp.get("speakerQuote")
-        li = f"<li><strong>{headline}</strong>"
-        if body:
-            body_escaped = html_mod.escape(body)
-            if quote:
-                quote_escaped = html_mod.escape(quote)
-                li += f"\n<p>{body_escaped} <em>{quote_escaped}</em></p>"
-            else:
-                li += f"\n<p>{body_escaped}</p>"
-        li += "</li>"
-        parts.append(li)
-    return "\n".join(parts)
+    return _frag.key_points_to_html(key_points)
 
 
 def _outline_to_html(outline: list, video_id: str) -> str:
-    parts = []
-    for entry in outline:
-        t = int(entry.get("startSeconds", 0))
-        title = html_mod.escape(entry.get("title", ""))
-        detail = html_mod.escape(entry.get("detail", ""))
-        h, rem = divmod(t, 3600)
-        m2, s2 = divmod(rem, 60)
-        display_ts = f"{h}:{m2:02d}:{s2:02d}" if h > 0 else f"{m2}:{s2:02d}"
-        vid = html_mod.escape(video_id, quote=True)
-        li = (
-            f'<li><a class="ts" data-t="{t}" '
-            f'href="https://www.youtube.com/watch?v={vid}&t={t}" '
-            f'target="_blank" rel="noopener noreferrer">▶ {display_ts}</a>'
-            f" — <span class=\"outline-title\">{title}</span>"
-            f"<span class=\"outline-detail\">{detail}</span></li>"
-        )
-        parts.append(li)
-    return "\n".join(parts)
+    return _frag.outline_to_html(outline, video_id)
 
 
 def _meta_line(extraction: dict) -> str:
-    parts = [
-        extraction.get("channel", ""),
-        extraction.get("duration", ""),
-        extraction.get("publishDate", ""),
-        extraction.get("views", ""),
-    ]
-    line = " · ".join(p for p in parts if p)
-    if extraction.get("langWarn"):
-        line += " · ⚠ Requested language not available"
-    return line
+    return _frag.meta_line(extraction)
 
 
 def canonical_to_template_keys(extraction: dict) -> dict:
@@ -134,23 +100,16 @@ def canonical_to_template_keys(extraction: dict) -> dict:
         "filename":       extraction.get("filename", ""),
     }
 
-    desc_html = extraction.get("descriptionHtml", "")
-    description_section = (
-        '<details class="description-details"><summary>YouTube Description</summary>'
-        f'<div class="video-description">{desc_html}</div></details>'
-        if desc_html else ""
-    )
-
     return {
         "VIDEO_ID":             video_id,
         "VIDEO_TITLE":          title,
         "VIDEO_URL":            video_url,
-        "META_LINE":            html_mod.escape(_meta_line(extraction)),
+        "META_LINE":            html_mod.escape(_frag.meta_line(extraction)),
         "SUMMARY":              html_mod.escape(extraction.get("summary", "")),
         "TAKEAWAY":             html_mod.escape(extraction.get("takeaway", "")),
-        "KEY_POINTS":           _key_points_to_html(extraction.get("keyPoints", [])),
-        "OUTLINE":              _outline_to_html(extraction.get("outline", []), video_id),
-        "DESCRIPTION_SECTION":  description_section,
+        "KEY_POINTS":           _frag.key_points_to_html(extraction.get("keyPoints", [])),
+        "OUTLINE":              _frag.outline_to_html(extraction.get("outline", []), video_id),
+        "DESCRIPTION_SECTION":  _frag.description_section(extraction.get("descriptionHtml", "")),
         "VIDEO_LENS_META":      json.dumps(meta_obj, ensure_ascii=False).replace("</", "<\\/"),
         "TRANSCRIPT":           html_mod.escape(extraction.get("transcript", "")),
     }

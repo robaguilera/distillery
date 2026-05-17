@@ -15,21 +15,24 @@ import pathlib
 import re
 import sys
 
+# Import canonical video ID extractor from the distillery scripts directory
+_DISTILLERY_SCRIPTS = pathlib.Path(__file__).resolve().parent.parent.parent / "distillery" / "scripts"
+sys.path.insert(0, str(_DISTILLERY_SCRIPTS))
+try:
+    from video_id import from_html as _extract_video_id_from_html
+except ImportError:
+    # Fallback: inline implementation if distillery scripts not co-located
+    def _extract_video_id_from_html(html: str) -> str:
+        m = re.search(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', html)
+        if m:
+            return m.group(1)
+        m = re.search(r'youtube\.com/watch\?v=([A-Za-z0-9_-]{11})', html)
+        if m:
+            return m.group(1)
+        return ""
+
 
 META_SCRIPT_START = '<script type="application/json" id="distillery-meta">'
-
-
-def extract_video_id(html: str) -> str:
-    """Extract YouTube video ID from iframe embed or outline links."""
-    # iframe src="https://www.youtube.com/embed/VIDEO_ID"
-    m = re.search(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', html)
-    if m:
-        return m.group(1)
-    # href="https://www.youtube.com/watch?v=VIDEO_ID"
-    m = re.search(r'youtube\.com/watch\?v=([A-Za-z0-9_-]{11})', html)
-    if m:
-        return m.group(1)
-    return ""
 
 
 def extract_title(html: str) -> str:
@@ -132,7 +135,7 @@ def backfill_file(path: pathlib.Path, dry_run: bool) -> bool:
     if META_SCRIPT_START in html:
         return False  # already has meta block
 
-    video_id = extract_video_id(html)
+    video_id = _extract_video_id_from_html(html)
     title = extract_title(html)
     channel, duration, pub_date = extract_meta_line_parts(html)
     gen_date = parse_gen_date(path.name)
