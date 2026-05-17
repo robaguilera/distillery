@@ -2,7 +2,13 @@
 Runs the full pipeline: transcript → metadata → render → serve.
 Run with: pytest tests/test_e2e.py -v
 """
-import json, re, shutil, subprocess, sys, time, urllib.request
+import json
+import re
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -13,7 +19,7 @@ GALLERY_SCRIPT_DIR = REPO_ROOT / "skills" / "distillery-gallery" / "scripts"
 TEMPLATE          = REPO_ROOT / "skills" / "distillery" / "template.html"
 
 sys.path.insert(0, str(SCRIPT_DIR))
-from render_report import render
+from render_report import render  # noqa: E402
 
 # "What are skills?" (2 min, 496K views) — short, stable, good for quick pipeline validation
 VIDEO_ID = "bjdBVZa66oU"
@@ -65,7 +71,11 @@ def test_render_and_serve(tmp_path):
         "SUMMARY":             "E2E test summary.",
         "TAKEAWAY":            "E2E test takeaway.",
         "KEY_POINTS":          "<li><strong>Point</strong> — detail</li>",
-        "OUTLINE":             f'<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v={VIDEO_ID}&t=0" target="_blank">▶ 0:00</a> — <span class="outline-title">Intro</span><span class="outline-detail"> Opening.</span></li>',
+        "OUTLINE": (
+            f'<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v={VIDEO_ID}&t=0"'
+            f' target="_blank">▶ 0:00</a> — <span class="outline-title">Intro</span>'
+            f'<span class="outline-detail"> Opening.</span></li>'
+        ),
         "DESCRIPTION_SECTION": "",
         "VIDEO_LENS_META":     SAMPLE_META,
         "TRANSCRIPT":          "[0:00] E2E test transcript.",
@@ -120,7 +130,9 @@ def test_build_index(tmp_path):
     })
     report = tmp_path / f"{gen_date}-000000-distillery_test_0.html"
     report.write_text(
-        f'<html><body><script type="application/json" id="distillery-meta">{meta}</script></body></html>',
+        f'<html><body>'
+        f'<script type="application/json" id="distillery-meta">{meta}</script>'
+        f'</body></html>',
         encoding="utf-8",
     )
 
@@ -147,12 +159,12 @@ def test_full_pipeline(tmp_path):
     )
     assert r.returncode == 0, f"fetch_transcript failed:\n{r.stderr}"
     lines = r.stdout.splitlines()
-    headers = {l.split(": ", 1)[0]: l.split(": ", 1)[1]
-               for l in lines if ": " in l and not l.startswith("[")}
+    headers = {line.split(": ", 1)[0]: line.split(": ", 1)[1]
+               for line in lines if ": " in line and not line.startswith("[")}
     assert headers.get("TITLE"), "Missing TITLE"
     assert headers.get("LANG"), "Missing LANG"
     assert "CHANNEL" in headers, "Missing CHANNEL key"  # value may be empty if scraping fails
-    transcript_lines = [l for l in lines if re.match(r"^\[\d+:\d+", l)]
+    transcript_lines = [line for line in lines if re.match(r"^\[\d+:\d+", line)]
     assert len(transcript_lines) >= 10, f"Too few transcript lines: {len(transcript_lines)}"
 
     # --- Step 2: Fetch metadata ---
@@ -167,7 +179,7 @@ def test_full_pipeline(tmp_path):
         assert "YTDLP_DURATION:" in r.stdout
         assert "YTDLP_CHAPTERS:" in r.stdout
         chapters_line = next(
-            (l for l in r.stdout.splitlines() if l.startswith("YTDLP_CHAPTERS:")), None
+            (line for line in r.stdout.splitlines() if line.startswith("YTDLP_CHAPTERS:")), None
         )
         if chapters_line:
             chapters_json = chapters_line.split(": ", 1)[1]
@@ -202,11 +214,15 @@ def test_claude_session():
          if p.stat().st_mtime >= before],
         key=lambda p: p.stat().st_mtime,
     )
-    assert matches, "No distillery HTML report found in ~/Downloads/distillery/reports/ after claude session"
+    assert matches, (
+        "No distillery HTML report found in ~/Downloads/distillery/reports/ after claude session"
+    )
 
     report_path = matches[-1]
     # Filename: YYYY-MM-DD-HHMMSS-distillery_<VIDEO_ID>_<slug>.html
-    assert re.match(r"\d{4}-\d{2}-\d{2}-\d{6}-distillery_[A-Za-z0-9_-]+_[a-z0-9_]+\.html$", report_path.name)
+    assert re.match(
+        r"\d{4}-\d{2}-\d{2}-\d{6}-distillery_[A-Za-z0-9_-]+_[a-z0-9_]+\.html$", report_path.name
+    )
     html = report_path.read_text(encoding="utf-8")
     assert "{{" not in html                        # no unreplaced placeholders
     assert VIDEO_ID in html                        # iframe + JS embed

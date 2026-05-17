@@ -22,7 +22,6 @@ import re
 import sys
 from datetime import datetime, timezone
 
-
 # ---------------------------------------------------------------------------
 # Constants (shared with build_index.py for backward compat)
 # ---------------------------------------------------------------------------
@@ -359,7 +358,9 @@ def main():
     p_store.add_argument("path", help="Path to the .json sidecar file")
 
     p_rebuild = sub.add_parser("rebuild", help="Full rebuild from filesystem scan")
-    p_rebuild.add_argument("--dir", required=True, help="Directory containing distillery HTML reports")
+    p_rebuild.add_argument(
+        "--dir", required=True, help="Directory containing distillery HTML reports"
+    )
 
     args = parser.parse_args()
     if args.command == "store":

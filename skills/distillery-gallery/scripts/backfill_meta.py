@@ -16,7 +16,9 @@ import re
 import sys
 
 # Import canonical video ID extractor from the distillery scripts directory
-_DISTILLERY_SCRIPTS = pathlib.Path(__file__).resolve().parent.parent.parent / "distillery" / "scripts"
+_DISTILLERY_SCRIPTS = (
+    pathlib.Path(__file__).resolve().parent.parent.parent / "distillery" / "scripts"
+)
 sys.path.insert(0, str(_DISTILLERY_SCRIPTS))
 try:
     from video_id import from_html as _extract_video_id_from_html
@@ -172,7 +174,9 @@ def backfill_file(path: pathlib.Path, dry_run: bool) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Backfill distillery-meta into existing reports")
     parser.add_argument("--dir", required=True, help="Directory containing distillery HTML reports")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would be changed without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would be changed without writing"
+    )
     args = parser.parse_args()
 
     scan_dir = pathlib.Path(args.dir).expanduser().resolve()
@@ -195,7 +199,8 @@ def main():
         else:
             skipped += 1
 
-    print(f"\nDone: {modified} {'would be ' if args.dry_run else ''}updated, {skipped} already had meta block or skipped.")
+    updated_label = "would be updated" if args.dry_run else "updated"
+    print(f"\nDone: {modified} {updated_label}, {skipped} already had meta block or skipped.")
 
 
 if __name__ == "__main__":

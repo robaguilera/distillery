@@ -3,7 +3,8 @@
 
 Usage:
     python3 batch.py ingest <url1> <url2> ...
-    python3 batch.py assemble --title "Batch Title" --distillations file1.json file2.json --synthesis synth.json
+    python3 batch.py assemble --title "Batch Title" --distillations file1.json file2.json \
+        --synthesis synth.json
 """
 import argparse
 import json
@@ -33,7 +34,7 @@ def cmd_ingest(args):
             print(f"Error ingesting {url}: {res['error']}", file=sys.stderr)
             continue
         results.append(res)
-    
+
     print(json.dumps(results, ensure_ascii=False))
 
 def cmd_assemble(args):
@@ -42,18 +43,18 @@ def cmd_assemble(args):
     for fpath in args.distillations:
         with open(fpath, "r", encoding="utf-8") as f:
             videos.append(json.load(f))
-    
+
     synthesis = None
     if args.synthesis:
         with open(args.synthesis, "r", encoding="utf-8") as f:
             synthesis = json.load(f)
-    
+
     payload = {
         "BATCH_TITLE": args.title,
         "BATCH_VIDEOS_JSON": json.dumps(videos, ensure_ascii=False),
         "SYNTHESIS_JSON": json.dumps(synthesis, ensure_ascii=False) if synthesis else "null"
     }
-    
+
     # Use the renderer's logic to build the full report
     render_batch_report.render(payload, args.output)
     print(f"Batch report rendered → {args.output}")
@@ -65,45 +66,47 @@ def cmd_manifest(args):
     except json.JSONDecodeError as e:
         print(f"ERROR: invalid JSON manifest on stdin: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     videos = manifest.get("distillations", [])
     synthesis = manifest.get("synthesis")
     title = manifest.get("title", "Batch Report")
     output = manifest.get("output")
-    
+
     if not output:
         print("ERROR: 'output' path missing from manifest", file=sys.stderr)
         sys.exit(1)
-    
+
     payload = {
         "BATCH_TITLE": title,
         "BATCH_VIDEOS_JSON": json.dumps(videos, ensure_ascii=False),
         "SYNTHESIS_JSON": json.dumps(synthesis, ensure_ascii=False) if synthesis else "null"
     }
-    
+
     render_batch_report.render(payload, output)
     print(f"Batch report rendered (via manifest) → {output}")
 
 def main():
     parser = argparse.ArgumentParser(description="Distillery Batch Orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    
+
     # Ingest
     ing_p = subparsers.add_parser("ingest", help="Ingest multiple URLs")
     ing_p.add_argument("urls", nargs="+", help="YouTube URLs or IDs")
-    
+
     # Assemble
     ass_p = subparsers.add_parser("assemble", help="Assemble and render a batch report")
     ass_p.add_argument("--title", required=True, help="Batch title")
     ass_p.add_argument("--output", required=True, help="Output .html path")
-    ass_p.add_argument("--distillations", nargs="+", required=True, help="Paths to Canonical Extraction JSON files")
+    ass_p.add_argument(
+        "--distillations", nargs="+", required=True, help="Paths to Canonical Extraction JSON files"
+    )
     ass_p.add_argument("--synthesis", help="Path to Synthesis JSON file")
 
     # Manifest
-    man_p = subparsers.add_parser("manifest", help="Assemble and render from a JSON manifest on stdin")
-    
+    subparsers.add_parser("manifest", help="Assemble and render from a JSON manifest on stdin")
+
     args = parser.parse_args()
-    
+
     if args.command == "ingest":
         cmd_ingest(args)
     elif args.command == "assemble":

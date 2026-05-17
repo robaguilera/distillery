@@ -1,0 +1,9 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "W"]
+exclude = [".venv", "__pycache__"]
+
+[lint.per-file-ignores]
+"scripts/yt_template_dev.py" = ["E501"]  # embedded sample HTML data

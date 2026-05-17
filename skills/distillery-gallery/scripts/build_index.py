@@ -9,7 +9,6 @@ backward compatibility but ignored (manifest.json is always written to --dir).
 import argparse
 import importlib.util
 import pathlib
-import sys
 
 
 def _load_knowledge_base():

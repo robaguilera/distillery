@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Render a batch multi-video HTML report from template_batch.html.
 
-Usage: echo '{"BATCH_TITLE": "...", "BATCH_VIDEOS_JSON": "...", "SYNTHESIS_JSON": "..."}' | python3 render_batch_report.py OUTPUT_PATH
+Usage: echo '{"BATCH_TITLE": "...", "BATCH_VIDEOS_JSON": "...", "SYNTHESIS_JSON": "..."}' \
+    | python3 render_batch_report.py OUTPUT_PATH
 
 Keys:
     BATCH_TITLE       — page <title> and header text
