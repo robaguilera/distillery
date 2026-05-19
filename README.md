@@ -4,6 +4,14 @@
 
 Distillery is a coding agent skill that fetches a YouTube transcript and generates a structured HTML report — executive summary, takeaway, key points with analysis, timestamped topic outline, and an embedded in-page player.
 
+![Single report view](docs/single-view.png)
+
+![Batch report with synthesis](docs/dark-batched-synthesis-view.png)
+
+![Batch report video tabs](docs/batched-view.png)
+
+![Gallery view](docs/gallery.png)
+
 ---
 
 ## What you get

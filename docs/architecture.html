@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Distillery — Architecture</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --accent: #6c8ef5;
+      --accent2: #a78bfa;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --orange: #fb923c;
+      --ai-in: #22c55e;
+      --ai-out: #f97316;
+      --step-bg: #1e2235;
+      --arrow: #4a5568;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+    header h1 span { color: var(--accent); }
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 15px;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+      margin-top: 52px;
+    }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    /* Spine line */
+    .flow::before {
+      content: "";
+      position: absolute;
+      left: 27px;
+      top: 28px;
+      bottom: 28px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent) 0%, var(--accent2) 100%);
+      opacity: 0.3;
+      z-index: 0;
+    }
+
+    /* ── Step row ── */
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step + .step {
+      margin-top: 8px;
+    }
+
+    /* connector arrow between steps */
+    .connector {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      padding-left: 27px;
+      position: relative;
+      z-index: 1;
+    }
+    .connector::before {
+      content: "▼";
+      font-size: 11px;
+      color: var(--muted);
+      opacity: 0.6;
+      position: absolute;
+      left: 21px;
+    }
+
+    /* step number badge */
+    .step-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-num.ai {
+      border-color: var(--ai-in);
+      color: var(--ai-in);
+      background: #0d2a1a;
+    }
+
+    /* step card */
+    .step-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 22px;
+      transition: border-color 0.15s;
+    }
+
+    .step-card:hover {
+      border-color: var(--accent);
+    }
+
+    .step-card.ai-card {
+      border-color: #1a4731;
+      background: #0d1f16;
+    }
+
+    .step-card.ai-card:hover {
+      border-color: var(--ai-in);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .step-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* tags */
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+    }
+    .tag-ai    { background: #0d2a1a; color: var(--ai-in); border: 1px solid #1a4731; }
+    .tag-py    { background: #1a1f3a; color: var(--accent); border: 1px solid var(--border); }
+    .tag-sh    { background: #2a1a0d; color: var(--orange); border: 1px solid #4a3010; }
+    .tag-fs    { background: #1a1530; color: var(--accent2); border: 1px solid #2e2850; }
+    .tag-agent { background: #2a1a00; color: var(--yellow); border: 1px solid #4a3500; }
+
+    .step-desc {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin-bottom: 12px;
+    }
+
+    /* file/function chips */
+    .artifacts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .artifact {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-family: "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .artifact .icon {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    .artifact.file   { color: var(--accent); }
+    .artifact.fn     { color: var(--green); }
+    .artifact.cmd    { color: var(--orange); }
+    .artifact.output { color: var(--accent2); }
+    .artifact.ai-fn  { color: var(--ai-in); border-color: #1a4731; background: #0d1f16; }
+
+    /* subprocess chain */
+    .subprocess-chain {
+      margin-top: 12px;
+      padding: 14px 16px;
+      background: var(--surface2);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .subprocess-chain.ai-chain {
+      border-left-color: var(--ai-in);
+      background: #0a1c10;
+    }
+
+    .subprocess-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .subprocess-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .subprocess-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12.5px;
+    }
+
+    .subprocess-step .sp-arrow {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .subprocess-step .sp-body {
+      flex: 1;
+    }
+
+    .sp-file {
+      font-family: monospace;
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .sp-fn {
+      font-family: monospace;
+      color: var(--green);
+      font-size: 12px;
+    }
+
+    .sp-label {
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    /* AI highlight box */
+    .ai-highlight {
+      margin-top: 12px;
+      padding: 14px 16px;
+      background: #0a1c10;
+      border-radius: 8px;
+      border: 1px solid #1a4731;
+    }
+
+    .ai-highlight-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ai-in);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ai-highlight ul {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ai-highlight li {
+      font-size: 12.5px;
+      color: #a7f3d0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .ai-highlight li::before {
+      content: "◆";
+      color: var(--ai-in);
+      font-size: 9px;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    /* AI boundary markers */
+    .ai-boundary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      margin: 4px 0 4px 76px;
+    }
+
+    .ai-boundary-line {
+      flex: 1;
+      height: 1px;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 6px,
+        currentColor 6px,
+        currentColor 10px
+      );
+      opacity: 0.5;
+    }
+
+    .ai-boundary-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .ai-boundary.enter .ai-boundary-line { color: var(--ai-in); }
+    .ai-boundary.enter .ai-boundary-label {
+      background: #0d2a1a;
+      color: var(--ai-in);
+      border: 1px solid #1a4731;
+    }
+
+    .ai-boundary.exit .ai-boundary-line { color: var(--ai-out); }
+    .ai-boundary.exit .ai-boundary-label {
+      background: #2a1500;
+      color: var(--ai-out);
+      border: 1px solid #4a2800;
+    }
+
+    /* ── Reference table ── */
+    .ref-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .ref-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+
+    .ref-card h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      font-family: monospace;
+      margin-bottom: 6px;
+    }
+
+    .ref-card p {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .ref-fns {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ref-fn {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--green);
+      display: flex;
+      gap: 8px;
+    }
+
+    .ref-fn span {
+      color: var(--muted);
+      font-family: sans-serif;
+      font-size: 11px;
+    }
+
+    /* ── JSON schema boxes ── */
+    .schema-box {
+      margin-top: 10px;
+      background: #0d1017;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: "SFMono-Regular", "Consolas", monospace;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .schema-key   { color: #93c5fd; }
+    .schema-str   { color: #a3e635; }
+    .schema-num   { color: var(--orange); }
+    .schema-bool  { color: var(--accent2); }
+    .schema-comment { color: #4a5568; font-style: italic; }
+
+    /* ── Two-column detail layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ── Overview diagram (SVG) ── */
+    .overview-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      overflow-x: auto;
+      margin-top: 20px;
+      margin-bottom: 40px;
+    }
+
+    svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+
+    /* ── Callout ── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .callout.info {
+      background: #0f1e3a;
+      border-left: 3px solid var(--accent);
+      color: #93c5fd;
+    }
+
+    .callout.warn {
+      background: #1f1400;
+      border-left: 3px solid var(--yellow);
+      color: var(--yellow);
+    }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: #3d4466;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ HEADER ══ -->
+  <header>
+    <h1><span>distillery</span> — Architecture Reference</h1>
+    <p>How a YouTube URL becomes a polished HTML report &mdash; files, functions, and every AI step annotated.</p>
+  </header>
+
+  <!-- ══ LEGEND ══ -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#0d2a1a;border:1px solid #1a4731;"></div>
+      <span>AI Agent active (Claude performs work)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#1a1d27;border:1px solid #2e3350;"></div>
+      <span>Orchestration / tool call (no LLM)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#1a1f3a;border:1px solid #2e3350;"></div>
+      <span>Python subprocess</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#2a1a0d;border:1px solid #4a3010;"></div>
+      <span>Shell script</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#1a1530;border:1px solid #2e2850;"></div>
+      <span>Filesystem / template</span>
+    </div>
+  </div>
+
+  <!-- ══ SYSTEM OVERVIEW SVG ══ -->
+  <div class="section-title">System Overview</div>
+  <div class="overview-wrap">
+    <svg viewBox="0 0 1200 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4a5568"/>
+        </marker>
+        <marker id="arr-ai" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+        </marker>
+        <marker id="arr-out" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#fb923c"/>
+        </marker>
+      </defs>
+
+      <!-- User -->
+      <rect x="20" y="140" width="110" height="60" rx="8" fill="#1e2235" stroke="#2e3350" stroke-width="1.5"/>
+      <text x="75" y="166" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700">User</text>
+      <text x="75" y="183" text-anchor="middle" fill="#8892a4" font-size="11">YouTube URL</text>
+
+      <!-- Arrow: User → SKILL.md -->
+      <line x1="130" y1="170" x2="165" y2="170" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- SKILL.md (agent) -->
+      <rect x="165" y="120" width="140" height="100" rx="8" fill="#0d2a1a" stroke="#1a4731" stroke-width="1.5"/>
+      <text x="235" y="150" text-anchor="middle" fill="#22c55e" font-size="12" font-weight="700">Claude Agent</text>
+      <text x="235" y="168" text-anchor="middle" fill="#a7f3d0" font-size="11">reads SKILL.md</text>
+      <text x="235" y="184" text-anchor="middle" fill="#6ee7b7" font-size="10.5" font-family="monospace">skills/distillery/</text>
+      <text x="235" y="198" text-anchor="middle" fill="#6ee7b7" font-size="10.5" font-family="monospace">  SKILL.md</text>
+
+      <!-- Arrow: Agent → ingest.py -->
+      <line x1="305" y1="170" x2="355" y2="170" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr-ai)"/>
+      <text x="330" y="163" text-anchor="middle" fill="#22c55e" font-size="10">Step 2</text>
+
+      <!-- ingest.py -->
+      <rect x="355" y="120" width="140" height="100" rx="8" fill="#1a1d27" stroke="#2e3350" stroke-width="1.5"/>
+      <text x="425" y="148" text-anchor="middle" fill="#6c8ef5" font-size="12" font-weight="700" font-family="monospace">ingest.py</text>
+      <text x="425" y="166" text-anchor="middle" fill="#8892a4" font-size="11">orchestrates</text>
+      <text x="425" y="182" text-anchor="middle" fill="#8892a4" font-size="11">transcript +</text>
+      <text x="425" y="198" text-anchor="middle" fill="#8892a4" font-size="11">metadata fetch</text>
+
+      <!-- sub-processes branching down from ingest.py -->
+      <line x1="425" y1="220" x2="425" y2="245" stroke="#4a5568" stroke-width="1.2"/>
+      <line x1="340" y1="245" x2="510" y2="245" stroke="#4a5568" stroke-width="1.2"/>
+
+      <!-- fetch_transcript.py -->
+      <line x1="370" y1="245" x2="370" y2="263" stroke="#4a5568" stroke-width="1.2" marker-end="url(#arr)"/>
+      <rect x="300" y="263" width="140" height="52" rx="6" fill="#1a1f3a" stroke="#2e3350" stroke-width="1.2"/>
+      <text x="370" y="284" text-anchor="middle" fill="#6c8ef5" font-size="11" font-family="monospace">fetch_transcript</text>
+      <text x="370" y="300" text-anchor="middle" fill="#6c8ef5" font-size="11" font-family="monospace">.py</text>
+
+      <!-- fetch_metadata.py -->
+      <line x1="478" y1="245" x2="478" y2="263" stroke="#4a5568" stroke-width="1.2" marker-end="url(#arr)"/>
+      <rect x="408" y="263" width="140" height="52" rx="6" fill="#1a1f3a" stroke="#2e3350" stroke-width="1.2"/>
+      <text x="478" y="284" text-anchor="middle" fill="#6c8ef5" font-size="11" font-family="monospace">fetch_metadata</text>
+      <text x="478" y="300" text-anchor="middle" fill="#6c8ef5" font-size="11" font-family="monospace">.py → yt-dlp</text>
+
+      <!-- Arrow: ingest result back to agent -->
+      <line x1="495" y1="170" x2="545" y2="170" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="520" y="163" text-anchor="middle" fill="#8892a4" font-size="10">JSON</text>
+
+      <!-- Claude AI extraction box -->
+      <rect x="545" y="120" width="155" height="100" rx="8" fill="#0d2a1a" stroke="#1a4731" stroke-width="2"/>
+      <text x="622" y="148" text-anchor="middle" fill="#22c55e" font-size="12" font-weight="700">Claude AI</text>
+      <text x="622" y="166" text-anchor="middle" fill="#a7f3d0" font-size="11">reads transcript</text>
+      <text x="622" y="182" text-anchor="middle" fill="#a7f3d0" font-size="11">produces Canonical</text>
+      <text x="622" y="198" text-anchor="middle" fill="#a7f3d0" font-size="11">Extraction JSON</text>
+
+      <!-- Arrow: AI → render_report.py -->
+      <line x1="700" y1="170" x2="750" y2="170" stroke="#fb923c" stroke-width="1.5" marker-end="url(#arr-out)"/>
+      <text x="725" y="163" text-anchor="middle" fill="#fb923c" font-size="10">Step 4</text>
+
+      <!-- render_report.py -->
+      <rect x="750" y="120" width="145" height="100" rx="8" fill="#1a1d27" stroke="#2e3350" stroke-width="1.5"/>
+      <text x="822" y="148" text-anchor="middle" fill="#6c8ef5" font-size="12" font-weight="700" font-family="monospace">render_report</text>
+      <text x="822" y="165" text-anchor="middle" fill="#6c8ef5" font-size="12" font-weight="700" font-family="monospace">.py</text>
+      <text x="822" y="183" text-anchor="middle" fill="#8892a4" font-size="11">template.html</text>
+      <text x="822" y="199" text-anchor="middle" fill="#8892a4" font-size="11">substitution</text>
+
+      <!-- Arrow: render → serve -->
+      <line x1="895" y1="170" x2="940" y2="170" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="917" y="163" text-anchor="middle" fill="#8892a4" font-size="10">Step 5</text>
+
+      <!-- serve_report.sh -->
+      <rect x="940" y="130" width="130" height="80" rx="8" fill="#2a1a0d" stroke="#4a3010" stroke-width="1.5"/>
+      <text x="1005" y="158" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700" font-family="monospace">serve_report</text>
+      <text x="1005" y="174" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700" font-family="monospace">.sh</text>
+      <text x="1005" y="192" text-anchor="middle" fill="#cd7a30" font-size="11">localhost:8765</text>
+
+      <!-- Arrow: serve → browser -->
+      <line x1="1070" y1="170" x2="1110" y2="170" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Browser output -->
+      <rect x="1110" y="140" width="75" height="60" rx="8" fill="#1e2235" stroke="#2e3350" stroke-width="1.5"/>
+      <text x="1147" y="165" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700">Browser</text>
+      <text x="1147" y="182" text-anchor="middle" fill="#8892a4" font-size="11">HTML report</text>
+
+      <!-- Step 6: KB update (below render) -->
+      <line x1="822" y1="220" x2="822" y2="253" stroke="#4a5568" stroke-width="1.2" marker-end="url(#arr)"/>
+      <rect x="748" y="253" width="148" height="52" rx="6" fill="#1a1530" stroke="#2e2850" stroke-width="1.2"/>
+      <text x="822" y="275" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="monospace">knowledge_base.py</text>
+      <text x="822" y="292" text-anchor="middle" fill="#a78bfa" font-size="11">manifest.json update</text>
+
+      <!-- Top labels -->
+      <text x="75" y="110" text-anchor="middle" fill="#4a5568" font-size="11">input</text>
+      <text x="235" y="110" text-anchor="middle" fill="#22c55e" font-size="11">AI agent</text>
+      <text x="425" y="110" text-anchor="middle" fill="#6c8ef5" font-size="11">ingestion</text>
+      <text x="622" y="110" text-anchor="middle" fill="#22c55e" font-size="11">AI extraction</text>
+      <text x="822" y="110" text-anchor="middle" fill="#6c8ef5" font-size="11">rendering</text>
+      <text x="1005" y="110" text-anchor="middle" fill="#fb923c" font-size="11">serving</text>
+      <text x="1147" y="120" text-anchor="middle" fill="#4a5568" font-size="11">output</text>
+    </svg>
+  </div>
+
+  <!-- ══ STEP-BY-STEP FLOW ══ -->
+  <div class="section-title">Step-by-Step Pipeline</div>
+
+  <div class="flow">
+
+    <!-- ──────── STEP 0 ──────── -->
+    <div class="step">
+      <div class="step-num">0</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Skill trigger &amp; mode detection</span>
+          <span class="tag tag-agent">Agent reads SKILL.md</span>
+        </div>
+        <p class="step-desc">
+          The user sends a message containing a YouTube URL (or a summarization request).
+          Claude has the <code>distillery</code> skill loaded at <code>~/.claude/skills/distillery/SKILL.md</code>.
+          It detects the trigger, counts the number of URLs, and routes to single-video or batch mode.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 1–27</span>
+          <span class="artifact output">→ video_id, mode (single | batch)</span>
+        </div>
+        <div class="callout info">
+          The SKILL.md file installed at <code>~/.claude/skills/distillery/SKILL.md</code> is the agent's instruction set.
+          Claude reads and executes it declaratively — there is no framework runner; Claude is the runtime.
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ──────── STEP 1 ──────── -->
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Extract video ID</span>
+          <span class="tag tag-agent">Agent orchestration</span>
+        </div>
+        <p class="step-desc">
+          Claude applies URL-parsing rules from SKILL.md to extract the 11-character video ID
+          from any supported YouTube URL format. It then checks the local report directory for an existing
+          distillation to avoid re-processing.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 29–55</span>
+          <span class="artifact fn">🔧 video_id.py → from_url()</span>
+          <span class="artifact cmd">$ ls ~/Downloads/distillery/reports/*VIDEO_ID*.html</span>
+          <span class="artifact output">→ VIDEO_ID (11-char string)</span>
+        </div>
+
+        <div class="subprocess-chain">
+          <div class="subprocess-title">Supported URL patterns (parsed by agent)</div>
+          <div class="subprocess-steps">
+            <div class="subprocess-step">
+              <span class="sp-arrow">▸</span>
+              <span class="sp-body"><span class="sp-file">youtube.com/watch?v=</span><span class="sp-label">— standard watch URL</span></span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">▸</span>
+              <span class="sp-body"><span class="sp-file">youtu.be/{id}</span><span class="sp-label">— short URL</span></span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">▸</span>
+              <span class="sp-body"><span class="sp-file">youtube.com/embed/{id}</span><span class="sp-label">— embed URL</span></span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">▸</span>
+              <span class="sp-body"><span class="sp-file">youtube.com/live/{id}</span><span class="sp-label">— live stream URL</span></span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">▸</span>
+              <span class="sp-body"><span class="sp-file">{11-char-id}</span><span class="sp-label">— bare ID</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ──────── STEP 2 ──────── -->
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Fetch video data</span>
+          <span class="tag tag-py">Python subprocess</span>
+        </div>
+        <p class="step-desc">
+          Claude runs <code>ingest.py</code> as a subprocess. This orchestrator launches two child
+          subprocesses in sequence — one for the transcript, one for enriched metadata — then merges
+          their outputs into a single JSON object that Claude parses for the next step.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 58–99</span>
+          <span class="artifact fn">🔧 ingest.py → ingest()</span>
+          <span class="artifact output">→ merged JSON (transcript + metadata)</span>
+        </div>
+
+        <div class="subprocess-chain">
+          <div class="subprocess-title">Subprocess call chain inside ingest.py</div>
+          <div class="subprocess-steps">
+            <div class="subprocess-step">
+              <span class="sp-arrow">1▸</span>
+              <span class="sp-body">
+                <span class="sp-file">fetch_transcript.py</span> <span class="sp-label">VIDEO_ID LANG_PREF</span>
+                <br/>
+                <span class="sp-label" style="margin-left:0">
+                  &nbsp;&nbsp;→ <span class="sp-fn">YouTubeTranscriptApi().list(video_id)</span> (youtube-transcript-api)<br/>
+                  &nbsp;&nbsp;→ <span class="sp-fn">_fetch_html_metadata()</span> — HTTP GET youtube.com page<br/>
+                  &nbsp;&nbsp;→ language selection logic (lines 124–171)<br/>
+                  &nbsp;&nbsp;→ outputs JSON: title, channel, transcript, lang, date, time
+                </span>
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">2▸</span>
+              <span class="sp-body">
+                <span class="sp-file">fetch_metadata.py</span> <span class="sp-label">VIDEO_ID (non-fatal)</span>
+                <br/>
+                <span class="sp-label" style="margin-left:0">
+                  &nbsp;&nbsp;→ sub-subprocess: <span class="sp-fn">yt-dlp --dump-json</span><br/>
+                  &nbsp;&nbsp;→ <span class="sp-fn">_format_views(), _format_duration(), _format_published()</span> (media_format.py)<br/>
+                  &nbsp;&nbsp;→ outputs JSON: channel, published, views, duration, description_html, chapters
+                </span>
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">3▸</span>
+              <span class="sp-body">
+                <span class="sp-fn">ingest.py</span> <span class="sp-label">merges results — yt-dlp wins on channel/published/views/duration</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a5568;margin-bottom:8px">Merged JSON output schema</div>
+          <div class="schema-box">
+{<br/>
+&nbsp;&nbsp;<span class="schema-key">"video_id"</span>: <span class="schema-str">"dQw4w9WgXcQ"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"transcript"</span>: <span class="schema-str">"[0:00] intro...\n[0:15] ..."</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"lang"</span>: <span class="schema-str">"en"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"lang_warn"</span>: <span class="schema-bool">false</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"title"</span>: <span class="schema-str">"Video Title"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"channel"</span>: <span class="schema-str">"Channel Name"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"published"</span>: <span class="schema-str">"May 12 2024"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"views"</span>: <span class="schema-str">"1.2M views"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"duration"</span>: <span class="schema-str">"1h 16m"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"description_html"</span>: <span class="schema-str">"&lt;a href=...&gt;..."</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"chapters"</span>: [{ <span class="schema-key">"start_time"</span>: <span class="schema-num">0</span>, <span class="schema-key">"title"</span>: <span class="schema-str">"Intro"</span> }],<br/>
+&nbsp;&nbsp;<span class="schema-key">"date"</span>: <span class="schema-str">"2026-03-06"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"time"</span>: <span class="schema-str">"210126"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"error"</span>: <span class="schema-bool">null</span><br/>
+}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI ENTERS -->
+    <div class="ai-boundary enter">
+      <div class="ai-boundary-line"></div>
+      <div class="ai-boundary-label">⬇ AI AGENT ENTERS — content extraction begins</div>
+      <div class="ai-boundary-line"></div>
+    </div>
+
+    <!-- ──────── STEP 3 ──────── -->
+    <div class="step">
+      <div class="step-num ai">3</div>
+      <div class="step-card ai-card">
+        <div class="step-header">
+          <span class="step-title">Canonical content extraction</span>
+          <span class="tag tag-ai">Claude AI — LLM inference</span>
+        </div>
+        <p class="step-desc">
+          This is the only step where LLM inference runs. Claude reads the full timestamped transcript
+          (plus optional description and chapters), then synthesizes a structured JSON document called
+          the <strong>Canonical Extraction</strong>. No tools are called during this step — Claude
+          produces the output as a raw JSON code block.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 101–195</span>
+          <span class="artifact ai-fn">✦ Claude reads transcript → produces Canonical JSON</span>
+          <span class="artifact output">→ Canonical Extraction (schema v1)</span>
+        </div>
+
+        <div class="ai-highlight">
+          <div class="ai-highlight-header">✦ What Claude produces in this step</div>
+          <ul>
+            <li><strong>summary</strong> — 2–4 sentence TL;DR of the video</li>
+            <li><strong>takeaway</strong> — 1–3 sentence non-obvious insight beyond summary</li>
+            <li><strong>keyPoints</strong> — 3–8 items: major claims, analytical depth, exact speaker quotes</li>
+            <li><strong>outline</strong> — 5–20 timestamped topics with detail sentences</li>
+            <li><strong>tags</strong> — 3–5 broad genre tags (ai, cloud, hardware…)</li>
+            <li><strong>keywords</strong> — searchable headlines from keyPoints</li>
+            <li>Written entirely in the video's <em>original language</em> — never translated</li>
+          </ul>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a5568;margin-bottom:8px">Canonical Extraction schema (canonical.py)</div>
+          <div class="schema-box">
+{<br/>
+&nbsp;&nbsp;<span class="schema-key">"schemaVersion"</span>: <span class="schema-num">1</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"videoId"</span>: <span class="schema-str">"dQw4w9WgXcQ"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"summary"</span>: <span class="schema-str">"2-4 sentence TL;DR..."</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"takeaway"</span>: <span class="schema-str">"Non-obvious insight..."</span>,<br/>
+&nbsp;&nbsp;<span class="schema-key">"keyPoints"</span>: [<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="schema-key">"headline"</span>: <span class="schema-str">"Core claim"</span>, <span class="schema-key">"body"</span>: <span class="schema-str">"..."</span>, <span class="schema-key">"speakerQuote"</span>: <span class="schema-str">"exact phrase"</span> }<br/>
+&nbsp;&nbsp;],<br/>
+&nbsp;&nbsp;<span class="schema-key">"outline"</span>: [<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="schema-key">"startSeconds"</span>: <span class="schema-num">0</span>, <span class="schema-key">"title"</span>: <span class="schema-str">"Topic"</span>, <span class="schema-key">"detail"</span>: <span class="schema-str">"One sentence..."</span> }<br/>
+&nbsp;&nbsp;],<br/>
+&nbsp;&nbsp;<span class="schema-key">"tags"</span>: [<span class="schema-str">"ai"</span>, <span class="schema-str">"developer"</span>],<br/>
+&nbsp;&nbsp;<span class="schema-key">"keywords"</span>: [<span class="schema-str">"Key Term 1"</span>],<br/>
+&nbsp;&nbsp;<span class="schema-key">"filename"</span>: <span class="schema-str">"2026-03-06-210126-distillery_dQw4w9WgXcQ_slug.html"</span>,<br/>
+&nbsp;&nbsp;<span class="schema-comment">// ... + title, channel, duration, publishDate, descriptionHtml, langWarn, transcript</span><br/>
+}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI EXITS -->
+    <div class="ai-boundary exit">
+      <div class="ai-boundary-line"></div>
+      <div class="ai-boundary-label">⬆ AI AGENT EXITS — structured JSON handed off to renderer</div>
+      <div class="ai-boundary-line"></div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ──────── STEP 4 ──────── -->
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Render HTML report</span>
+          <span class="tag tag-py">Python subprocess</span>
+          <span class="tag tag-fs">Template substitution</span>
+        </div>
+        <p class="step-desc">
+          Claude constructs the Canonical JSON inline as a Python heredoc, pipes it to
+          <code>render_report.py</code>, which loads <code>template.html</code>, converts every field
+          to HTML fragments, and performs string substitution. No LLM involved.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 197–250</span>
+          <span class="artifact fn">🔧 render_report.py → render()</span>
+          <span class="artifact fn">🔧 render_report.py → canonical_to_template_keys()</span>
+          <span class="artifact fn">🔧 render_fragments.py → key_points_to_html(), outline_to_html(), meta_line(), description_section()</span>
+          <span class="artifact fn">🔧 canonical.py → validate(), build(), write_sidecar()</span>
+          <span class="artifact file">📄 template.html ({{PLACEHOLDER}} substitution)</span>
+          <span class="artifact output">→ ~/Downloads/distillery/reports/{filename}.html</span>
+          <span class="artifact output">→ ~/Downloads/distillery/reports/{filename}.json (sidecar)</span>
+        </div>
+
+        <div class="subprocess-chain">
+          <div class="subprocess-title">Render pipeline inside render_report.py</div>
+          <div class="subprocess-steps">
+            <div class="subprocess-step">
+              <span class="sp-arrow">1▸</span>
+              <span class="sp-body">
+                Detect input format: <span class="sp-fn">if "schemaVersion" in data</span> → Canonical path (line 132)
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">2▸</span>
+              <span class="sp-body">
+                <span class="sp-fn">canonical_to_template_keys(extraction)</span> — maps schema fields to
+                <code>{{UPPERCASE}}</code> keys (lines 83–115)
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">3▸</span>
+              <span class="sp-body">
+                HTML fragment generation via <span class="sp-file">render_fragments.py</span>:
+                <br/>&nbsp;&nbsp;• <span class="sp-fn">key_points_to_html()</span> — builds <code>&lt;li&gt;</code> list with headlines, bodies, quotes
+                <br/>&nbsp;&nbsp;• <span class="sp-fn">outline_to_html()</span> — timestamp links (<code>?t=N</code>), display as <code>HH:MM:SS</code>
+                <br/>&nbsp;&nbsp;• <span class="sp-fn">meta_line()</span> — "Channel · Duration · Date · Views"
+                <br/>&nbsp;&nbsp;• <span class="sp-fn">description_section()</span> — collapsible <code>&lt;details&gt;</code> block
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">4▸</span>
+              <span class="sp-body">
+                <span class="sp-fn">template.read_text()</span> → loop:
+                <code>html.replace("{{KEY}}", value)</code> for all keys (lines 145–147)
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">5▸</span>
+              <span class="sp-body">
+                Write HTML to <code>~/Downloads/distillery/reports/{filename}.html</code>;
+                write sidecar <code>.json</code> via <span class="sp-fn">canonical.write_sidecar()</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a5568;margin-bottom:8px">Template placeholders in template.html</div>
+          <div class="two-col">
+            <div class="schema-box" style="margin-top:0">
+<span class="schema-key">{{VIDEO_ID}}</span>       <span class="schema-comment">— 11-char YouTube ID</span><br/>
+<span class="schema-key">{{VIDEO_TITLE}}</span>    <span class="schema-comment">— page &lt;title&gt; and H1</span><br/>
+<span class="schema-key">{{VIDEO_URL}}</span>      <span class="schema-comment">— full watch URL</span><br/>
+<span class="schema-key">{{META_LINE}}</span>      <span class="schema-comment">— "Channel · Duration · Date · Views"</span><br/>
+<span class="schema-key">{{SUMMARY}}</span>        <span class="schema-comment">— TL;DR (escaped HTML)</span><br/>
+<span class="schema-key">{{TAKEAWAY}}</span>       <span class="schema-comment">— key insight (escaped HTML)</span>
+            </div>
+            <div class="schema-box" style="margin-top:0">
+<span class="schema-key">{{KEY_POINTS}}</span>     <span class="schema-comment">— pre-built &lt;li&gt; HTML</span><br/>
+<span class="schema-key">{{OUTLINE}}</span>        <span class="schema-comment">— pre-built &lt;li&gt; HTML with ts links</span><br/>
+<span class="schema-key">{{DESCRIPTION_SECTION}}</span> <span class="schema-comment">— collapsible &lt;details&gt;</span><br/>
+<span class="schema-key">{{VIDEO_LENS_META}}</span> <span class="schema-comment">— JSON for &lt;script&gt;</span><br/>
+<span class="schema-key">{{TRANSCRIPT}}</span>     <span class="schema-comment">— full transcript (escaped)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ──────── STEP 5 ──────── -->
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Serve &amp; open in browser</span>
+          <span class="tag tag-sh">Shell script</span>
+        </div>
+        <p class="step-desc">
+          Claude calls <code>serve_report.sh</code> with the HTML path. The script manages a single
+          persistent HTTP server per user, kills any previous instance, starts a new one on port 8765,
+          then opens the report URL in the default browser.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 252–260</span>
+          <span class="artifact cmd">$ serve_report.sh OUTPUT_PATH</span>
+          <span class="artifact fn">🔧 serve_report.sh — PID management, python3 -m http.server 8765</span>
+          <span class="artifact output">→ http://localhost:8765/reports/{filename}.html (opens in browser)</span>
+        </div>
+
+        <div class="subprocess-chain">
+          <div class="subprocess-title">serve_report.sh flow (80 lines)</div>
+          <div class="subprocess-steps">
+            <div class="subprocess-step">
+              <span class="sp-arrow">1▸</span>
+              <span class="sp-body">
+                Determine serve root — parent of <code>reports/</code> dir, or file's own dir
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">2▸</span>
+              <span class="sp-body">
+                Kill previous server: read <code>~/.cache/distillery/server.pid</code> → <code>kill $PID</code>
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">3▸</span>
+              <span class="sp-body">
+                Start server: <code>python3 -m http.server 8765 --directory "$SERVE_DIR" &amp;</code>
+                → save new PID
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">4▸</span>
+              <span class="sp-body">
+                Open: <code>open "http://localhost:8765/{URL_PATH}"</code> (macOS) / <code>xdg-open</code> (Linux)
+              </span>
+            </div>
+            <div class="subprocess-step">
+              <span class="sp-arrow">5▸</span>
+              <span class="sp-body">
+                Print <code>HTML_REPORT: $HTML_PATH</code> for agent to parse
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ──────── STEP 6 ──────── -->
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Update Knowledge Base</span>
+          <span class="tag tag-py">Python subprocess</span>
+          <span class="tag tag-fs">Filesystem write</span>
+        </div>
+        <p class="step-desc">
+          Claude calls <code>knowledge_base.py store</code> with the sidecar JSON path.
+          The manifest is updated incrementally (add/update one report entry), then the gallery
+          <code>index.html</code> is regenerated with the inlined manifest. Non-fatal — failure prints
+          a warning and does not stop the pipeline.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 262–272</span>
+          <span class="artifact fn">🔧 knowledge_base.py → store()</span>
+          <span class="artifact output">→ ~/Downloads/distillery/manifest.json (updated)</span>
+          <span class="artifact output">→ ~/Downloads/distillery/index.html (regenerated)</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /flow -->
+
+  <!-- ══ BATCH MODE ══ -->
+  <div class="section-title" style="margin-top:60px">Batch Mode (2+ Videos)</div>
+
+  <div class="flow">
+
+    <div class="step">
+      <div class="step-num">B1</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Acknowledge &amp; ask about relatedness</span>
+          <span class="tag tag-agent">Agent orchestration</span>
+        </div>
+        <p class="step-desc">
+          Claude lists all detected video IDs and asks the user: "Are these related?"
+          If no → runs Steps 1–6 for each video in sequence.
+          If yes → continues to B2.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 307–317</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">B2</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Ingest all videos</span>
+          <span class="tag tag-py">Python subprocesses</span>
+        </div>
+        <p class="step-desc">
+          For 2 videos: runs Steps 1–3 sequentially for each.
+          For 3+ videos: Claude spawns subagents to run Steps 1–3 in parallel.
+          Collects N Canonical Extraction JSON objects.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 319–337</span>
+          <span class="artifact fn">🔧 ingest.py (×N)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- AI ENTERS (batch) -->
+    <div class="ai-boundary enter" style="margin-left:0">
+      <div class="ai-boundary-line"></div>
+      <div class="ai-boundary-label">⬇ AI AGENT ENTERS — cross-video synthesis</div>
+      <div class="ai-boundary-line"></div>
+    </div>
+
+    <div class="step">
+      <div class="step-num ai">B3</div>
+      <div class="step-card ai-card">
+        <div class="step-header">
+          <span class="step-title">Generate synthesis content</span>
+          <span class="tag tag-ai">Claude AI — LLM inference</span>
+        </div>
+        <p class="step-desc">
+          Claude reads all N transcripts and summaries simultaneously, then produces a Synthesis JSON:
+          a cross-video title, summary, themes, divergences, and takeaway.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 339–355</span>
+          <span class="artifact ai-fn">✦ Claude analyzes N transcripts → Synthesis JSON</span>
+        </div>
+        <div class="ai-highlight">
+          <div class="ai-highlight-header">✦ Synthesis JSON fields</div>
+          <ul>
+            <li><strong>title</strong> — descriptive batch report title</li>
+            <li><strong>summary</strong> — 3–5 sentence synthesis across all videos</li>
+            <li><strong>themes</strong> — shared themes with 2–3 sentence bodies</li>
+            <li><strong>divergences</strong> — where videos disagree or differ (or null)</li>
+            <li><strong>takeaway</strong> — the cross-video insight</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI EXITS (batch) -->
+    <div class="ai-boundary exit" style="margin-left:0">
+      <div class="ai-boundary-line"></div>
+      <div class="ai-boundary-label">⬆ AI AGENT EXITS — synthesis JSON passed to batch renderer</div>
+      <div class="ai-boundary-line"></div>
+    </div>
+
+    <div class="connector"></div>
+
+    <div class="step">
+      <div class="step-num">B4–6</div>
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-title">Render batch report, serve, update KB</span>
+          <span class="tag tag-py">Python subprocess</span>
+          <span class="tag tag-sh">Shell script</span>
+        </div>
+        <p class="step-desc">
+          Same structure as single-video Steps 4–6, but using <code>batch.py</code> and
+          <code>render_batch_report.py</code> instead. The batch manifest JSON drives a tabbed JS
+          interface — one tab per video plus a synthesis tab.
+        </p>
+        <div class="artifacts">
+          <span class="artifact file">📄 SKILL.md lines 357–398</span>
+          <span class="artifact fn">🔧 batch.py → cmd_manifest()</span>
+          <span class="artifact fn">🔧 render_batch_report.py → render()</span>
+          <span class="artifact file">📄 template_batch.html</span>
+          <span class="artifact fn">🔧 knowledge_base.py → rebuild()</span>
+          <span class="artifact output">→ ~/Downloads/distillery/reports/{batch-filename}.html</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /batch flow -->
+
+  <!-- ══ FILE REFERENCE ══ -->
+  <div class="section-title" style="margin-top:60px">File &amp; Function Reference</div>
+  <div class="ref-grid">
+
+    <div class="ref-card">
+      <h3>skills/distillery/SKILL.md</h3>
+      <p>Declarative instruction set for the Claude agent. No code — Claude reads and executes it as the pipeline controller. Installed to <code>~/.claude/skills/distillery/SKILL.md</code>.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">Steps 0–7 <span>full single-video pipeline</span></div>
+        <div class="ref-fn">Steps B1–B7 <span>batch pipeline</span></div>
+        <div class="ref-fn">Error table <span>lines 276–300, maps error codes to actions</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/ingest.py</h3>
+      <p>Ingestion orchestrator. Launches two child subprocesses, merges results, returns unified JSON. The single entry point the agent calls for data fetching.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">ingest(video_id, lang_pref) <span>→ merged dict</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/fetch_transcript.py</h3>
+      <p>Fetches timestamped transcript via <code>youtube-transcript-api</code> and scrapes basic metadata from the YouTube page HTML. Language selection logic is here.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">main() <span>CLI entry point, prints JSON</span></div>
+        <div class="ref-fn">_fetch_html_metadata() <span>HTTP GET + regex</span></div>
+        <div class="ref-fn">language selection <span>lines 124–171</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/fetch_metadata.py</h3>
+      <p>Enriches metadata via <code>yt-dlp --dump-json</code>. Provides description, chapters, and higher-quality channel/views/duration. Non-fatal — failures are silent.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">main() <span>CLI entry point, prints JSON</span></div>
+        <div class="ref-fn">_format_published() <span>YYYYMMDD → "May 12 2024"</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/render_report.py</h3>
+      <p>Reads Canonical JSON from stdin, converts to template keys, substitutes into <code>template.html</code>, writes HTML file and sidecar JSON. Pure string substitution — no LLM.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">render(data, output_path, ...) <span>main entry</span></div>
+        <div class="ref-fn">canonical_to_template_keys(extraction) <span>lines 83–115</span></div>
+        <div class="ref-fn">_find_template() <span>template discovery</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/render_fragments.py</h3>
+      <p>HTML fragment generators called by <code>render_report.py</code>. Each function builds a pre-formatted HTML string for one section of the report.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">key_points_to_html(key_points) <span>lines 11–28</span></div>
+        <div class="ref-fn">outline_to_html(outline, video_id) <span>lines 31–50</span></div>
+        <div class="ref-fn">meta_line(extraction) <span>lines 53–64</span></div>
+        <div class="ref-fn">description_section(desc_html) <span>lines 67–74</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/canonical.py</h3>
+      <p>Schema definition and sidecar I/O for Canonical Extraction. The <code>build()</code> function is the authoritative definition of schema v1 field defaults and validation.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">validate(data) <span>→ list of error strings</span></div>
+        <div class="ref-fn">build(data) <span>fills defaults, raises on missing required</span></div>
+        <div class="ref-fn">write_sidecar(extraction, html_path) <span>→ .json file</span></div>
+        <div class="ref-fn">read_sidecar(html_path) <span>→ dict or None</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/media_format.py</h3>
+      <p>Single source of truth for human-readable formatting of numeric metadata fields. Shared by both <code>fetch_transcript.py</code> and <code>fetch_metadata.py</code>.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">_format_views(view_count) <span>→ "1.2M views"</span></div>
+        <div class="ref-fn">_format_duration(seconds) <span>→ "1h 16m"</span></div>
+        <div class="ref-fn">_format_published(upload_date) <span>→ "May 12 2024"</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/video_id.py</h3>
+      <p>Canonical URL parsing. Handles all YouTube URL formats plus bare 11-char IDs. Also extracts video ID from a rendered report's HTML.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">from_url(url_or_id) <span>→ 11-char ID or None</span></div>
+        <div class="ref-fn">from_html(html) <span>→ ID from iframe/link in report</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>scripts/serve_report.sh</h3>
+      <p>Manages the persistent local HTTP server. Kills previous instance via PID file, starts a new one, opens the browser. Single server shared across all reports.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">PID file <span>~/.cache/distillery/server.pid</span></div>
+        <div class="ref-fn">server <span>python3 -m http.server 8765</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>skills/distillery-gallery/scripts/knowledge_base.py</h3>
+      <p>Manages the gallery manifest. Supports incremental adds (<code>store</code>) and full filesystem rebuilds (<code>rebuild</code>). Regenerates <code>index.html</code> after each write.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">store(canonical, out_dir) <span>add/update one report</span></div>
+        <div class="ref-fn">rebuild(scan_dir) <span>full filesystem rescan</span></div>
+        <div class="ref-fn">query(tags, keywords) <span>filter reports</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>install.sh</h3>
+      <p>Multi-agent installer. Creates the shared <code>~/.distillery/</code> environment, installs Python deps into a venv, copies templates, and writes agent-specific SKILL.md files.</p>
+      <div class="ref-fns">
+        <div class="ref-fn">~/.distillery/.venv/ <span>Python 3.10+ venv</span></div>
+        <div class="ref-fn">~/.distillery/claude.env <span>exports SKILL_DIR</span></div>
+        <div class="ref-fn">~/.claude/skills/distillery/ <span>agent install target</span></div>
+      </div>
+    </div>
+
+  </div><!-- /ref-grid -->
+
+  <!-- ══ AI BOUNDARY SUMMARY ══ -->
+  <div class="section-title" style="margin-top:60px">Where the AI Agent Steps In and Out</div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
+
+    <div style="background:#0d2a1a;border:1px solid #1a4731;border-radius:10px;padding:18px 22px">
+      <div style="font-size:14px;font-weight:700;color:#22c55e;margin-bottom:10px">⬇ Entry 1 — Pipeline controller (Steps 0–2, 4–6)</div>
+      <p style="font-size:13px;color:#a7f3d0;line-height:1.7">
+        Claude acts as an orchestrator throughout. It parses the user's message, extracts the video ID,
+        constructs and runs shell commands (ingest.py, render_report.py, serve_report.sh, knowledge_base.py),
+        and interprets their JSON output. This is <strong>tool use / shell execution</strong>, not LLM inference.
+        Claude is directing the flow, not generating content.
+      </p>
+    </div>
+
+    <div style="background:#0d2a1a;border:2px solid #22c55e;border-radius:10px;padding:18px 22px">
+      <div style="font-size:14px;font-weight:700;color:#22c55e;margin-bottom:10px">✦ Core AI Work — Step 3: Canonical Extraction</div>
+      <p style="font-size:13px;color:#a7f3d0;line-height:1.7">
+        This is the <strong>sole LLM inference step</strong>. Claude receives the full timestamped transcript
+        (and optional description/chapters) and synthesizes the Canonical Extraction JSON entirely from its
+        language understanding. It produces: summary, takeaway, key points with analytical depth, a timestamped
+        outline, and searchable tags/keywords. It writes in the video's original language without translating.
+        <br/><br/>
+        Input: transcript string (from ingest.py output, SKILL.md Step 2 stored variables)<br/>
+        Output: raw JSON code block (no prose) matching <code>canonical.py</code> schema v1
+      </p>
+    </div>
+
+    <div style="background:#2a1500;border:1px solid #4a2800;border-radius:10px;padding:18px 22px">
+      <div style="font-size:14px;font-weight:700;color:#fb923c;margin-bottom:10px">⬆ Exit 1 — After Step 3, before Step 4</div>
+      <p style="font-size:13px;color:#fed7aa;line-height:1.7">
+        After producing the Canonical JSON, Claude switches back to orchestrator mode.
+        It constructs a Python heredoc containing the JSON, pipes it to <code>render_report.py</code>,
+        and then calls <code>serve_report.sh</code> and <code>knowledge_base.py</code> — all shell/subprocess
+        operations with no LLM involvement.
+      </p>
+    </div>
+
+    <div style="background:#0d2a1a;border:2px solid #22c55e;border-radius:10px;padding:18px 22px">
+      <div style="font-size:14px;font-weight:700;color:#22c55e;margin-bottom:10px">✦ Batch AI Work — Step B3: Cross-video Synthesis</div>
+      <p style="font-size:13px;color:#a7f3d0;line-height:1.7">
+        A second LLM inference step that only runs in batch mode (2+ related videos). Claude receives all N
+        transcripts simultaneously and generates the Synthesis JSON: shared themes, divergences, and a
+        cross-video takeaway. Output is passed to <code>batch.py</code> for rendering.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ══ RUNTIME ENVIRONMENT ══ -->
+  <div class="section-title" style="margin-top:60px">Runtime Environment</div>
+  <div class="ref-grid">
+
+    <div class="ref-card">
+      <h3>Install layout</h3>
+      <p>Created by <code>./install.sh claude</code></p>
+      <div class="ref-fns">
+        <div class="ref-fn">~/.distillery/.venv/ <span>Python 3.10+ venv</span></div>
+        <div class="ref-fn">~/.distillery/scripts/ <span>all *.py scripts</span></div>
+        <div class="ref-fn">~/.distillery/template.html <span>single-video template</span></div>
+        <div class="ref-fn">~/.distillery/template_batch.html <span>batch template</span></div>
+        <div class="ref-fn">~/.distillery/claude.env <span>exports SKILL_DIR</span></div>
+        <div class="ref-fn">~/.claude/skills/distillery/SKILL.md <span>agent skill</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>Runtime paths</h3>
+      <p>Where files land at runtime</p>
+      <div class="ref-fns">
+        <div class="ref-fn">~/Downloads/distillery/reports/ <span>HTML + sidecar JSON reports</span></div>
+        <div class="ref-fn">~/Downloads/distillery/manifest.json <span>gallery index data</span></div>
+        <div class="ref-fn">~/Downloads/distillery/index.html <span>gallery viewer</span></div>
+        <div class="ref-fn">~/.cache/distillery/server.pid <span>HTTP server PID</span></div>
+        <div class="ref-fn">localhost:8765 <span>report HTTP server</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>Python dependencies</h3>
+      <p>Installed into <code>~/.distillery/.venv/</code></p>
+      <div class="ref-fns">
+        <div class="ref-fn">youtube-transcript-api==1.2.4 <span>transcript fetching</span></div>
+        <div class="ref-fn">yt-dlp==2026.3.17 <span>enriched metadata + chapters</span></div>
+        <div class="ref-fn">ruff==0.15.13 <span>linting (dev only)</span></div>
+      </div>
+    </div>
+
+    <div class="ref-card">
+      <h3>Error handling policy</h3>
+      <p>Fatal vs non-fatal failures</p>
+      <div class="ref-fns">
+        <div class="ref-fn">fetch_transcript errors <span>fatal — pipeline stops</span></div>
+        <div class="ref-fn">fetch_metadata errors <span>non-fatal — silent skip</span></div>
+        <div class="ref-fn">knowledge_base errors <span>non-fatal — warning printed</span></div>
+        <div class="ref-fn">render unreplaced <code>{{K}}</code> <span>warning to stderr</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    distillery architecture reference · generated 2026-05-18
+  </footer>
+
+</div>
+</body>
+</html>
