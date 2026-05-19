@@ -58,6 +58,9 @@ cp skills/distillery/template_batch.html "$SHARED_DIR/template_batch.html"
 for tmpl in skills/distillery/template_*.html; do
   [ -f "$tmpl" ] && cp "$tmpl" "$SHARED_DIR/$(basename "$tmpl")"
 done
+# Shared CSS and JS (injected at render time into every single-video template)
+cp skills/distillery/shared.css "$SHARED_DIR/shared.css"
+cp skills/distillery/shared_app.js "$SHARED_DIR/shared_app.js"
 # Gallery viewer lives one level above scripts/ so knowledge_base.py can find it
 cp skills/distillery-gallery/index.html "$SHARED_DIR/index.html"
 echo "  copied scripts and templates"

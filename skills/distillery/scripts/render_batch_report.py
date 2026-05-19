@@ -27,6 +27,22 @@ except (ImportError, ValueError):
 EXPECTED_KEYS = {"BATCH_TITLE", "BATCH_VIDEOS_JSON", "SYNTHESIS_JSON"}
 AGENT_DIRS = ("agents", "claude", "copilot", "gemini", "cursor", "windsurf", "opencode", "codex")
 
+
+def _find_shared_asset(name: str) -> pathlib.Path | None:
+    """Locate a shared asset (shared.css, shared_app.js) alongside the templates."""
+    import os
+    skill_dir = os.environ.get("SKILL_DIR")
+    if skill_dir:
+        p = pathlib.Path(skill_dir).parent / name
+        if p.exists():
+            return p
+    home = pathlib.Path.home()
+    for agent in AGENT_DIRS:
+        p = home / f".{agent}" / "skills" / "distillery" / name
+        if p.exists():
+            return p
+    return None
+
 SCRIPT_SAFE_KEYS = {"BATCH_VIDEOS_JSON", "SYNTHESIS_JSON", "BATCH_DISTILLERY_META"}
 
 
@@ -104,6 +120,16 @@ def render(data: dict, output_path: str, template_path: pathlib.Path | None = No
         pass
 
     html = template_path.read_text(encoding="utf-8")
+
+    # Inject shared CSS and JS before per-report substitution
+    for asset_key, asset_name in (("SHARED_CSS", "shared.css"), ("SHARED_JS", "shared_app.js")):
+        if "{{" + asset_key + "}}" in html:
+            asset_path = _find_shared_asset(asset_name)
+            if asset_path is not None:
+                html = html.replace("{{" + asset_key + "}}", asset_path.read_text(encoding="utf-8"))
+            else:
+                print(f"WARNING: {asset_name} not found — install may be incomplete", file=sys.stderr)
+
     for key, value in data.items():
         if key in SCRIPT_SAFE_KEYS:
             value = safe_for_script(value)

@@ -65,6 +65,22 @@ def find_template(view: str = "default") -> pathlib.Path:
     )
 
 
+def _find_shared_asset(name: str) -> pathlib.Path | None:
+    """Locate a shared asset (shared.css, shared_app.js) alongside the templates."""
+    import os
+    skill_dir = os.environ.get("SKILL_DIR")
+    if skill_dir:
+        p = pathlib.Path(skill_dir).parent / name
+        if p.exists():
+            return p
+    home = pathlib.Path.home()
+    for agent in AGENT_DIRS:
+        p = home / f".{agent}" / "skills" / "distillery" / name
+        if p.exists():
+            return p
+    return None
+
+
 # ── Canonical Extraction → template key conversion ────────────────────────
 
 # Thin aliases kept for any code that still references these private names.
@@ -143,6 +159,16 @@ def render(
             template_path = find_template(view)
 
     html = template_path.read_text(encoding="utf-8")
+
+    # Inject shared CSS and JS before per-report substitution
+    for asset_key, asset_name in (("SHARED_CSS", "shared.css"), ("SHARED_JS", "shared_app.js")):
+        if "{{" + asset_key + "}}" in html:
+            asset_path = _find_shared_asset(asset_name)
+            if asset_path is not None:
+                html = html.replace("{{" + asset_key + "}}", asset_path.read_text(encoding="utf-8"))
+            else:
+                print(f"WARNING: {asset_name} not found — install may be incomplete", file=sys.stderr)
+
     for key, value in data.items():
         html = html.replace("{{" + key + "}}", value)
 
