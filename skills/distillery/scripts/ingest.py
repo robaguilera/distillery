@@ -25,7 +25,8 @@ def ingest(video_id: str, lang_pref: str = "") -> dict:
     py = sys.executable
 
     # Fetch transcript (fatal on error)
-    cmd = [py, str(here / "fetch_transcript.py"), video_id]
+    # Use "--" before video_id so argparse won't mistake IDs starting with "-" for flags
+    cmd = [py, str(here / "fetch_transcript.py"), "--", video_id]
     if lang_pref:
         cmd.append(lang_pref)
     try:
@@ -43,7 +44,7 @@ def ingest(video_id: str, lang_pref: str = "") -> dict:
     m: dict = {}
     try:
         m_proc = subprocess.run(
-            [py, str(here / "fetch_metadata.py"), video_id],
+            [py, str(here / "fetch_metadata.py"), "--", video_id],
             capture_output=True, text=True, timeout=60,
         )
         m = json.loads(m_proc.stdout)
