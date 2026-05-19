@@ -340,7 +340,12 @@ Each video requires running **Steps 1, 2, and 3** (parse ID → ingest → gener
 
 **For N ≥ 3:** spawn one subagent per video in parallel. Each subagent receives the video URL and this instruction:
 
-> "Run Steps 1, 2, and 3 of the distillery skill for this URL: `URL`. After completing Step 3, output the Canonical Extraction JSON object — and nothing else."
+> Extract the video ID from this URL: `URL`. Then run the following bash command to ingest it (replace `VIDEO_ID` with the extracted ID):
+> ```bash
+> source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; "$_py" "$SKILL_DIR/ingest.py" "VIDEO_ID" ""
+> ```
+> Parse the JSON output. Then analyse the transcript and produce a Canonical Extraction JSON object following the Step 3 schema in this skill.
+> **Do NOT write any files, create any scripts, or perform any rendering. Output only the JSON object — no prose before or after it.**
 
 Wait for all N subagents to complete. Collect all N Canonical Extraction JSON objects.
 
