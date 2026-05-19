@@ -159,6 +159,31 @@ def render(data: dict, output_path: str, template_path: pathlib.Path | None = No
     return str(out)
 
 
+def _parse_duration_seconds(s: str) -> int:
+    """Parse duration strings like '1h 16m', '22 min', '1h' into seconds."""
+    import re
+    if not s:
+        return 0
+    hm = re.match(r'(\d+)h(?:\s+(\d+)m)?', s)
+    if hm:
+        return int(hm.group(1)) * 3600 + int(hm.group(2) or 0) * 60
+    m = re.match(r'(\d+)\s*min', s)
+    if m:
+        return int(m.group(1)) * 60
+    return 0
+
+
+def _format_duration_seconds(total: int) -> str:
+    """Format total seconds as '1h 16m', '45 min', etc."""
+    if total <= 0:
+        return ""
+    minutes = total // 60
+    if minutes < 60:
+        return f"{minutes} min"
+    h, m = divmod(minutes, 60)
+    return f"{h}h {m}m" if m else f"{h}h"
+
+
 def _build_batch_meta(data: dict, output_path: str) -> str:
     """Build the gallery-compatible meta JSON for a batch report."""
     from datetime import datetime, timezone
@@ -183,25 +208,29 @@ def _build_batch_meta(data: dict, output_path: str) -> str:
     if summary and len(summary) > 300:
         summary = summary[:297] + "…"
 
-    # Aggregate tags and keywords from individual videos
-    all_tags: list[str] = []
+    # Aggregate tags, keywords, and duration from individual videos
+    tag_counts: dict[str, int] = {}
     all_keywords: list[str] = []
+    total_seconds = 0
     video_stubs = []
     for v in videos:
-        all_tags.extend(v.get("tags") or [])
+        for t in (v.get("tags") or []):
+            if t:
+                tag_counts[t] = tag_counts.get(t, 0) + 1
         all_keywords.extend(v.get("keywords") or [])
+        total_seconds += _parse_duration_seconds(v.get("duration", ""))
         video_stubs.append({
             "videoId": v.get("videoId", ""),
             "title": v.get("title", ""),
             "channel": v.get("channel", ""),
         })
 
-    # Deduplicate, preserving order
-    seen_tags: set[str] = set()
-    tags = [t for t in all_tags if t and not (seen_tags.add(t) or t in seen_tags)]  # type: ignore[func-returns-value]
+    # Most-common tags first (by video count), cap at 3
+    tags = [t for t, _ in sorted(tag_counts.items(), key=lambda x: -x[1])][:3]
     seen_kw: set[str] = set()
     keywords = [k for k in all_keywords if k and not (seen_kw.add(k) or k in seen_kw)]  # type: ignore[func-returns-value]
 
+    duration = _format_duration_seconds(total_seconds)
     filename = pathlib.Path(output_path).name
     generation_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -212,8 +241,9 @@ def _build_batch_meta(data: dict, output_path: str) -> str:
         "filename": filename,
         "generationDate": generation_date,
         "videoCount": len(videos),
+        "duration": duration,
         "summary": summary,
-        "tags": tags[:8],
+        "tags": tags,
         "keywords": keywords[:20],
         "videos": video_stubs,
     }

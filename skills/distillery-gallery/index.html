@@ -986,7 +986,7 @@
 
       // Duration
       const tdDuration = document.createElement('td');
-      tdDuration.textContent = r.type === 'batch' ? '' : (r.duration || '');
+      tdDuration.textContent = r.duration || '';
       tr.appendChild(tdDuration);
 
       // Tags (max 3 + overflow)
