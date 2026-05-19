@@ -194,6 +194,20 @@ Each object has:
 | Long (45–90 min) | 3–4 sentences | 3–4 sentences | 8–15 entries |
 | Very long (>90 min) | 3–4 sentences | 3–4 sentences | 10–20 entries |
 
+### 3a. Validate the Canonical Extraction
+
+Before rendering, validate the JSON from Step 3 against the schema. Pipe it to `canonical.py validate`:
+
+```bash
+source ~/.distillery/claude.env 2>/dev/null || { echo "Distillery not installed — run: ./install.sh claude"; exit 1; }; _py="$(dirname "$SKILL_DIR")/.venv/bin/python3"; [ ! -f "$_py" ] && _py=python3; echo 'CANONICAL_JSON' | "$_py" "$SKILL_DIR/canonical.py" validate
+```
+
+Replace `CANONICAL_JSON` with the JSON object produced in Step 3 (single-line, properly escaped for shell).
+
+- **Exit 0 / output `OK`:** proceed to Step 4.
+- **Exit 1 / output `ERROR: ...` lines:** the output lists the specific fields that failed. Fix only those fields — do not regenerate the entire extraction — and re-run this validation command with the corrected JSON. If the second attempt also fails, report the validation errors to the user and stop.
+- **`INVALID JSON`:** the JSON was malformed. Regenerate the Step 3 output in full and re-run validation once. If it fails again, stop.
+
 ### 4. Determine the filename and render the report
 
 **Determine the output filename:**

@@ -93,3 +93,26 @@ def read_sidecar(html_path: str) -> dict | None:
         return json.loads(sidecar.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def main() -> None:
+    import sys
+    if len(sys.argv) < 2 or sys.argv[1] != "validate":
+        print("Usage: canonical.py validate  (reads JSON from stdin)", file=sys.stderr)
+        sys.exit(2)
+    raw = sys.stdin.read()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"INVALID JSON: {e}", file=sys.stderr)
+        sys.exit(1)
+    errors = validate(data)
+    if errors:
+        for err in errors:
+            print(f"ERROR: {err}")
+        sys.exit(1)
+    print("OK")
+
+
+if __name__ == "__main__":
+    main()

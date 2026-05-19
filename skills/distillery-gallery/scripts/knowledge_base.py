@@ -186,8 +186,9 @@ def _store_from_sidecar_path(sidecar_path: pathlib.Path) -> None:
     (sidecars live in ``reports/``, manifest is in the parent dir).
     """
     data = json.loads(sidecar_path.read_text(encoding="utf-8"))
-    if not data.get("filename"):
-        data["filename"] = "reports/" + sidecar_path.with_suffix(".html").name
+    # Always derive from the actual sidecar path so the manifest entry always
+    # carries the "reports/" prefix the gallery needs to build correct URLs.
+    data["filename"] = "reports/" + sidecar_path.with_suffix(".html").name
     out_dir = str(sidecar_path.parent.parent)
     store(data, out_dir=out_dir)
 
