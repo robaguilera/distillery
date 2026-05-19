@@ -100,6 +100,10 @@ def render(data: dict, output_path: str, template_path: pathlib.Path | None = No
     if template_path is None:
         template_path = find_template()
 
+    # Auto-generate batch meta before video processing — _prepare_video_data drops channel/tags/keywords
+    if not data.get("BATCH_DISTILLERY_META"):
+        data["BATCH_DISTILLERY_META"] = _build_batch_meta(data, output_path)
+
     # Process videos to ensure they have the HTML fragments the JS expects
     videos_raw = data.get("BATCH_VIDEOS_JSON", "[]")
     try:
